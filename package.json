@@ -1,0 +1,22 @@
+{
+  "name": "gta3web",
+  "version": "1.0.0",
+  "description": "Grand Theft Auto III Browser Port with 8-Player Multiplayer & Sandbox Trainer (Cloudflare Workers + Durable Objects + re3 WASM)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "cf:dev": "npx wrangler dev",
+    "cf:deploy": "npx wrangler deploy"
+  },
+  "keywords": [
+    "gta3",
+    "grand-theft-auto",
+    "re3",
+    "wasm",
+    "multiplayer",
+    "cloudflare-workers",
+    "durable-objects",
+    "webrtc"
+  ],
+  "license": "MIT"
+}

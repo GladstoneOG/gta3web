@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "maxChunkBytes": 19398656,
+  "basePack": {
+    "file": "gta3_base.pack.gz",
+    "rawSize": 41491876,
+    "gzSize": 10286180,
+    "fileCount": 171
+  },
+  "gta3Img": {
+    "totalRawSize": 170891264,
+    "sliceCount": 5,
+    "slices": [
+      {
+        "file": "gta3_img.part00.gz",
+        "rawOffset": 0,
+        "rawSize": 37748736,
+        "gzSize": 15161902
+      },
+      {
+        "file": "gta3_img.part01.gz",
+        "rawOffset": 37748736,
+        "rawSize": 37748736,
+        "gzSize": 15037515
+      },
+      {
+        "file": "gta3_img.part02.gz",
+        "rawOffset": 75497472,
+        "rawSize": 37748736,
+        "gzSize": 14156236
+      },
+      {
+        "file": "gta3_img.part03.gz",
+        "rawOffset": 113246208,
+        "rawSize": 37748736,
+        "gzSize": 12561204
+      },
+      {
+        "file": "gta3_img.part04.gz",
+        "rawOffset": 150994944,
+        "rawSize": 19896320,
+        "gzSize": 6137701
+      }
+    ]
+  },
+  "sfxRaw": {
+    "totalRawSize": 80849468,
+    "sliceCount": 5,
+    "slices": [
+      {
+        "file": "sfx_raw.part00.gz",
+        "rawOffset": 0,
+        "rawSize": 17825792,
+        "gzSize": 16706271
+      },
+      {
+        "file": "sfx_raw.part01.gz",
+        "rawOffset": 17825792,
+        "rawSize": 17825792,
+        "gzSize": 16435796
+      },
+      {
+        "file": "sfx_raw.part02.gz",
+        "rawOffset": 35651584,
+        "rawSize": 17825792,
+        "gzSize": 16255440
+      },
+      {
+        "file": "sfx_raw.part03.gz",
+        "rawOffset": 53477376,
+        "rawSize": 17825792,
+        "gzSize": 16459191
+      },
+      {
+        "file": "sfx_raw.part04.gz",
+        "rawOffset": 71303168,
+        "rawSize": 9546300,
+        "gzSize": 8881232
+      }
+    ]
+  },
+  "audioStreams": [
+    {
+      "name": "CHAT",
+      "wavFile": "CHAT.wav",
+      "file": "CHAT.mp3",
+      "size": 17424440,
+      "bitrate": "40k"
+    },
+    {
+      "name": "City",
+      "wavFile": "City.wav",
+      "file": "City.mp3",
+      "size": 6005204,
+      "bitrate": "80k"
+    },
+    {
+      "name": "CLASS",
+      "wavFile": "CLASS.wav",
+      "file": "CLASS.mp3",
+      "size": 12367844,
+      "bitrate": "80k"
+    },
+    {
+      "name": "FLASH",
+      "wavFile": "FLASH.wav",
+      "file": "FLASH.mp3",
+      "size": 11261204,
+      "bitrate": "80k"
+    },
+    {
+      "name": "GAME",
+      "wavFile": "GAME.wav",
+      "file": "GAME.mp3",
+      "size": 9447884,
+      "bitrate": "80k"
+    },
+    {
+      "name": "HEAD",
+      "wavFile": "HEAD.wav",
+      "file": "HEAD.mp3",
+      "size": 14061790,
+      "bitrate": "80k"
+    },
+    {
+      "name": "KJAH",
+      "wavFile": "KJAH.wav",
+      "file": "KJAH.mp3",
+      "size": 11449124,
+      "bitrate": "80k"
+    },
+    {
+      "name": "LIPS",
+      "wavFile": "LIPS.wav",
+      "file": "LIPS.mp3",
+      "size": 12072790,
+      "bitrate": "80k"
+    },
+    {
+      "name": "MSX",
+      "wavFile": "MSX.wav",
+      "file": "MSX.mp3",
+      "size": 15008444,
+      "bitrate": "80k"
+    },
+    {
+      "name": "police",
+      "wavFile": "police.wav",
+      "file": "police.mp3",
+      "size": 9901124,
+      "bitrate": "80k"
+    },
+    {
+      "name": "RISE",
+      "wavFile": "RISE.wav",
+      "file": "RISE.mp3",
+      "size": 15685604,
+      "bitrate": "80k"
+    },
+    {
+      "name": "Water",
+      "wavFile": "Water.wav",
+      "file": "Water.mp3",
+      "size": 6326324,
+      "bitrate": "80k"
+    }
+  ]
+}

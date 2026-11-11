@@ -1,0 +1,13 @@
+# Build dependencies and toolchains
+.emsdk/
+re3-wasm/
+node_modules/
+.wrangler/
+.dev.vars
+__pycache__/
+*.pyc
+
+# System and logs
+*.log
+.DS_Store
+Thumbs.db

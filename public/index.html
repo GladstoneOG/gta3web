@@ -1,0 +1,3070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>GRAND THEFT AUTO III WEB — 8-Player Multiplayer & Sandbox Trainer</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚓</text></svg>" />
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-surface: #0f131a;
+      --bg-panel: rgba(15, 19, 26, 0.94);
+      --bg-card: rgba(24, 31, 42, 0.85);
+      --border-subtle: rgba(148, 163, 184, 0.18);
+      --border-gold: rgba(245, 158, 11, 0.45);
+      --gold-primary: #f59e0b;
+      --gold-light: #fbbf24;
+      --gold-dark: #b45309;
+      --accent-blue: #38bdf8;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Utility Command Bar */
+    #top-bar {
+      height: 48px;
+      min-height: 48px;
+      background: linear-gradient(180deg, #161b24 0%, #0d1017 100%);
+      border-bottom: 1px solid var(--border-gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      gap: 8px;
+      z-index: 50;
+      overflow-x: auto;
+      scrollbar-width: none;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transition: transform 0.25s ease, margin-top 0.25s ease;
+    }
+    #top-bar::-webkit-scrollbar { display: none; }
+    #top-bar.hidden {
+      margin-top: -48px;
+      transform: translateY(-48px);
+    }
+
+    .bar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(180, 83, 9, 0.18));
+      border: 1px solid var(--border-gold);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .bar-btn {
+      background: rgba(30, 38, 54, 0.85);
+      color: var(--text-main);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .bar-btn:hover {
+      background: rgba(45, 56, 78, 0.95);
+      border-color: var(--gold-primary);
+      transform: translateY(-1px);
+    }
+    .bar-btn:active {
+      transform: translateY(0);
+    }
+    .bar-btn.gold-btn {
+      background: linear-gradient(135deg, #d97706 0%, #92400e 100%);
+      border-color: var(--gold-light);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+    }
+    .bar-btn.gold-btn:hover {
+      background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.55);
+    }
+    .bar-btn.green-btn {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+      border-color: rgba(16, 185, 129, 0.6);
+      color: #6ee7b7;
+    }
+    .bar-btn.danger-btn {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    /* Multiplayer Status Pill */
+    #net-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--text-muted);
+    }
+    #net-status-pill.online {
+      border-color: rgba(16, 185, 129, 0.6);
+      color: #6ee7b7;
+      background: rgba(6, 78, 59, 0.35);
+    }
+    #net-status-pill.waiting {
+      border-color: rgba(245, 158, 11, 0.6);
+      color: #fde047;
+      background: rgba(120, 53, 15, 0.35);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+    }
+    #net-status-pill.online .status-dot {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    #net-status-pill.waiting .status-dot {
+      background: #f59e0b;
+      box-shadow: 0 0 8px #f59e0b;
+    }
+
+    /* Floating toggle pill when bar hidden */
+    #top-bar-reveal {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 18px;
+      background: rgba(22, 27, 36, 0.9);
+      border: 1px solid var(--border-gold);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 0 12px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gold-light);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 55;
+    }
+    #top-bar.hidden ~ #top-bar-reveal {
+      display: flex;
+    }
+
+    /* Main 3D Canvas Stage */
+    #stage {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      overflow: hidden;
+    }
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+      cursor: default;
+    }
+
+    /* Loading Splash Overlay */
+    #loading-screen {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, #182030 0%, #080a0f 80%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+      text-align: center;
+    }
+    .loading-title {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+      margin-bottom: 4px;
+    }
+    .loading-subtitle {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .progress-box {
+      width: 440px;
+      max-width: 90vw;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 14px;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+      transition: width 0.15s ease;
+      box-shadow: 0 0 12px #f59e0b;
+    }
+    .progress-status {
+      margin-top: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      justify-content: space-between;
+    }
+    .progress-detail {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    #btn-start-game {
+      margin-top: 20px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+      color: #fff;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+      display: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    #btn-start-game:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 28px rgba(245, 158, 11, 0.75);
+    }
+
+    /* Modal Backdrop and Wrapper */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 80;
+      padding: 16px;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-gold);
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+      width: 100%;
+      max-width: 840px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.18s ease-out;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      padding: 14px 18px;
+      background: linear-gradient(180deg, #1a2230 0%, #101622 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--gold-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .modal-close:hover { color: #fff; }
+
+    /* Sandbox 6-Tab Container */
+    .tab-bar {
+      display: flex;
+      background: #0d1117;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 10px 16px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .tab-btn.active {
+      color: var(--gold-light);
+      border-bottom-color: var(--gold-primary);
+      background: rgba(245, 158, 11, 0.08);
+    }
+    .tab-content {
+      padding: 16px 18px;
+      overflow-y: auto;
+      flex: 1;
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Form and Grid Layouts */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .input-text, .select-box {
+      width: 100%;
+      background: #141a24;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #fff;
+      outline: none;
+    }
+    .input-text:focus, .select-box:focus {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .action-btn {
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .action-btn:hover {
+      background: rgba(51, 65, 85, 0.95);
+      border-color: var(--gold-primary);
+      transform: translateY(-1px);
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+    }
+    .item-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.15s ease;
+    }
+    .item-card:hover {
+      border-color: var(--gold-primary);
+      background: rgba(30, 41, 59, 0.95);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .item-card.highlight {
+      border-color: rgba(245, 158, 11, 0.6);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(30, 41, 59, 0.85));
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .card-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .card-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--gold-light);
+      align-self: flex-start;
+      margin-top: 6px;
+    }
+
+    /* Toggle Switches */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .switch-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--gold-primary);
+    }
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Toast Notifications */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 99;
+      pointer-events: none;
+    }
+    .toast {
+      background: rgba(15, 23, 42, 0.94);
+      border-left: 4px solid var(--gold-primary);
+      border: 1px solid var(--border-gold);
+      border-left-width: 4px;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      animation: toastIn 0.2s ease-out;
+      pointer-events: auto;
+      max-width: 320px;
+    }
+    @keyframes toastIn {
+      from { transform: translateX(30px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Chat HUD overlay */
+    #chat-hud {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      width: 380px;
+      max-width: calc(100vw - 28px);
+      z-index: 45;
+      pointer-events: none;
+    }
+    #chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 180px;
+      overflow-y: auto;
+      margin-bottom: 6px;
+      scrollbar-width: none;
+    }
+    .chat-msg {
+      background: rgba(10, 14, 22, 0.8);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      text-shadow: 0 1px 2px #000;
+      color: #f1f5f9;
+      word-break: break-word;
+    }
+    .chat-msg .sender {
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-right: 4px;
+    }
+    #chat-input-box {
+      display: none;
+      pointer-events: auto;
+    }
+    #chat-input-box.active {
+      display: flex;
+      gap: 6px;
+    }
+    #chat-input {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-gold);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #fff;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Utility Command Bar -->
+  <header id="top-bar">
+    <div class="bar-group">
+      <div class="brand-badge">
+        <span>🚓</span>
+        <span>GTA III LIBERTY CITY WEB</span>
+      </div>
+      <div id="net-status-pill">
+        <span class="status-dot"></span>
+        <span id="net-status-text">Multiplayer: Offline</span>
+      </div>
+    </div>
+
+    <div class="bar-group">
+      <button class="bar-btn gold-btn" id="btn-open-sandbox" title="Open Interactive Sandbox Menu (F3)">
+        <span>🛠️</span>
+        <span>Sandbox & Spawner [F3]</span>
+      </button>
+
+      <button class="bar-btn green-btn" id="btn-quick-unlock" title="Unlock All Islands & Repair Callahan Bridge">
+        <span>🔓</span>
+        <span>Unlock Map</span>
+      </button>
+
+      <button class="bar-btn" id="btn-open-host">
+        <span>📡</span>
+        <span>Host Room</span>
+      </button>
+
+      <button class="bar-btn" id="btn-open-rooms">
+        <span>🌐</span>
+        <span>Rooms</span>
+      </button>
+
+      <button class="bar-btn" id="btn-copy-invite" style="display: none;">
+        <span>📋</span>
+        <span>Invite Link</span>
+      </button>
+
+      <button class="bar-btn danger-btn" id="btn-leave-room" style="display: none;">
+        <span>✖</span>
+        <span>Leave</span>
+      </button>
+
+      <button class="bar-btn" id="btn-toggle-fullscreen" title="Toggle Fullscreen">
+        <span>⛶</span>
+      </button>
+
+      <button class="bar-btn" id="btn-hide-topbar" title="Hide Command Bar (F2)">
+        <span>▲</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Reveal Pill when bar hidden -->
+  <div id="top-bar-reveal" title="Show Command Bar (F2)">▼ COMMAND BAR</div>
+
+  <!-- Stage & WebGL Canvas -->
+  <main id="stage">
+    <canvas id="canvas" tabindex="-1"></canvas>
+
+    <!-- In-Game Chat HUD -->
+    <div id="chat-hud">
+      <div id="chat-messages"></div>
+      <div id="chat-input-box">
+        <input type="text" id="chat-input" placeholder="Press Enter to send chat..." maxlength="120" />
+      </div>
+    </div>
+
+    <!-- Loading Splash Screen -->
+    <div id="loading-screen">
+      <div class="loading-title">Grand Theft Auto III</div>
+      <div class="loading-subtitle">8-Player Online Multiplayer & Sandbox Web Edition</div>
+
+      <div class="progress-box">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+        <div class="progress-status">
+          <span id="progress-status-text">Initializing Asset Pipeline...</span>
+          <span id="progress-percent">0%</span>
+        </div>
+        <div class="progress-detail" id="progress-detail">Checking local IndexedDB cache (gta3web-cache-v1)...</div>
+      </div>
+
+      <button id="btn-start-game">▶ START LIBERTY CITY</button>
+    </div>
+  </main>
+
+  <!-- Sandbox & Spawner Modal (6 Tabs) -->
+  <div class="modal-backdrop" id="modal-sandbox">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🛠️</span>
+          <span>Liberty City Sandbox & Trainer [F3]</span>
+        </div>
+        <button class="modal-close" id="btn-close-sandbox">&times;</button>
+      </div>
+
+      <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="tab-player">👤 Player & Skin</button>
+        <button class="tab-btn" data-tab="tab-vehicles">🚗 Vehicles (61)</button>
+        <button class="tab-btn" data-tab="tab-weapons">🔫 Weapons & Ammo</button>
+        <button class="tab-btn" data-tab="tab-teleport">🗺️ Map & Teleports</button>
+        <button class="tab-btn" data-tab="tab-cheats">⚡ Cheats & World</button>
+        <button class="tab-btn" data-tab="tab-roster">👥 Roster & Chat</button>
+      </nav>
+
+      <!-- Tab 1: Player & Skin -->
+      <section class="tab-content active" id="tab-player">
+        <div class="form-group">
+          <label class="form-label">Multiplayer Player Name</label>
+          <input type="text" id="input-player-name" class="input-text" maxlength="20" placeholder="Claude Speed" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Vitals, Armor & Economy</label>
+          <div class="btn-row">
+            <button class="action-btn" id="btn-heal-player">❤️ Heal + Armor + Fix Car</button>
+            <button class="action-btn" data-money="10000">+$10,000</button>
+            <button class="action-btn" data-money="100000">+$100,000</button>
+            <button class="action-btn" data-money="1000000">+$1,000,000</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Wanted Level</label>
+          <div class="btn-row">
+            <button class="action-btn" data-wanted="0">0★ Clear</button>
+            <button class="action-btn" data-wanted="1">1★</button>
+            <button class="action-btn" data-wanted="2">2★</button>
+            <button class="action-btn" data-wanted="3">3★</button>
+            <button class="action-btn" data-wanted="4">4★</button>
+            <button class="action-btn" data-wanted="5">5★</button>
+            <button class="action-btn" data-wanted="6">6★ Military</button>
+            <button class="action-btn" id="btn-lock-never-wanted">🛡️ Lock Never Wanted</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Character Model (Ped ID 0..82)</label>
+          <div class="cards-grid" id="ped-skins-grid"></div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Vehicle Spawner -->
+      <section class="tab-content" id="tab-vehicles">
+        <div class="form-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="text" id="input-veh-search" class="input-text" style="flex: 1; min-width: 180px;" placeholder="Search 61 vehicles (Cheetah, Banshee, Tank, Dodo...)" />
+          <select id="select-veh-category" class="select-box" style="width: 200px;">
+            <option value="all">All Vehicles (61)</option>
+            <option value="sports">Sports & Supercars</option>
+            <option value="gang">Gang & Syndicates</option>
+            <option value="emergency">Emergency & Military</option>
+            <option value="sedans">Sedans, Classics & Taxis</option>
+            <option value="heavy">Trucks, Vans & Buses</option>
+            <option value="specials">Boats, Aircraft & Specials</option>
+          </select>
+          <select id="select-veh-color" class="select-box" style="width: 190px;">
+            <option value="-1">Default Factory Paint</option>
+            <option value="0">Metallic Black (0)</option>
+            <option value="1">Pure White (1)</option>
+            <option value="2">Police Blue (2)</option>
+            <option value="3">Ferrari Red (3)</option>
+            <option value="6">Taxi Yellow (6)</option>
+            <option value="14">Emerald Green (14)</option>
+            <option value="34">Vice Purple (34)</option>
+            <option value="61">Gold Metallic (61)</option>
+          </select>
+        </div>
+
+        <div class="switch-row" style="margin-bottom: 12px;">
+          <span class="switch-label">Warp directly into driver's seat after spawn</span>
+          <label class="switch">
+            <input type="checkbox" id="chk-warp-driver" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="cards-grid" id="vehicles-grid"></div>
+      </section>
+
+      <!-- Tab 3: Weapons & Ammo -->
+      <section class="tab-content" id="tab-weapons">
+        <div class="btn-row" style="margin-bottom: 14px;">
+          <button class="action-btn" id="btn-give-all-weapons" style="background: linear-gradient(135deg, #d97706, #b45309); color: #fff;">
+            🎒 Give All Weapons (9999 Ammo)
+          </button>
+        </div>
+        <div class="cards-grid" id="weapons-grid"></div>
+      </section>
+
+      <!-- Tab 4: Map & Teleports -->
+      <section class="tab-content" id="tab-teleport">
+        <div class="btn-row" style="margin-bottom: 14px;">
+          <button class="action-btn" id="btn-unlock-all-sandbox" style="background: linear-gradient(135deg, #059669, #047857); color: #fff;">
+            🔓 Unlock All 3 Islands, Bridges & Tunnels
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Teleport to Remote Players in Room</label>
+          <div class="btn-row" id="remote-players-teleport-list">
+            <span style="font-size: 12px; color: var(--text-muted);">No other players in room yet.</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Iconic Liberty City Locations</label>
+          <div class="cards-grid" id="teleport-grid"></div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Cheats & World -->
+      <section class="tab-content" id="tab-cheats">
+        <div class="form-group">
+          <label class="form-label">Trainer Cheats & Physics Modifiers</label>
+          <div class="switch-row">
+            <span class="switch-label">🛡️ Invincibility / God Mode</span>
+            <label class="switch"><input type="checkbox" data-cheat="0" /><span class="slider"></span></label>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">♾️ Infinite Ammo & No Reload</span>
+            <label class="switch"><input type="checkbox" data-cheat="1" /><span class="slider"></span></label>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">🕊️ Never Wanted Lock</span>
+            <label class="switch"><input type="checkbox" data-cheat="2" /><span class="slider"></span></label>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">🚀 Flying Cars</span>
+            <label class="switch"><input type="checkbox" data-cheat="3" /><span class="slider"></span></label>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">💥 Tank Cars (Smash vehicles)</span>
+            <label class="switch"><input type="checkbox" data-cheat="4" /><span class="slider"></span></label>
+          </div>
+          <div class="switch-row">
+            <span class="switch-label">⚡ Super Sprint & Jump</span>
+            <label class="switch"><input type="checkbox" data-cheat="5" /><span class="slider"></span></label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Weather (Multiplayer Synced)</label>
+          <div class="btn-row">
+            <button class="action-btn" data-weather="0">☀️ Sunny</button>
+            <button class="action-btn" data-weather="1">☁️ Cloudy</button>
+            <button class="action-btn" data-weather="2">🌧️ Rainy Storm</button>
+            <button class="action-btn" data-weather="3">🌫️ Foggy</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Time of Day (Multiplayer Synced)</label>
+          <div class="btn-row">
+            <button class="action-btn" data-time="6">🌅 Dawn (06:00)</button>
+            <button class="action-btn" data-time="12">☀️ Noon (12:00)</button>
+            <button class="action-btn" data-time="18">🌇 Dusk (18:00)</button>
+            <button class="action-btn" data-time="0">🌙 Midnight (00:00)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 6: Roster & Chat -->
+      <section class="tab-content" id="tab-roster">
+        <div class="form-group">
+          <label class="form-label">Connected Room Peers (Max 8)</label>
+          <div id="roster-peers-table" style="font-size: 13px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room Chat Broadcast</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="input-modal-chat" class="input-text" placeholder="Send a message to all players..." maxlength="120" />
+            <button class="action-btn" id="btn-send-modal-chat">Send</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Host Room Modal -->
+  <div class="modal-backdrop" id="modal-host">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title"><span>📡</span><span>Host 8-Player Room</span></div>
+        <button class="modal-close" id="btn-close-host">&times;</button>
+      </div>
+      <div style="padding: 16px;">
+        <div class="form-group">
+          <label class="form-label">Your Character Name</label>
+          <input type="text" id="input-host-player-name" class="input-text" value="Claude Speed" maxlength="24" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room Port (1024..65535)</label>
+          <input type="number" id="input-host-port" class="input-text" value="7777" min="1024" max="65535" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room Title</label>
+          <input type="text" id="input-host-name" class="input-text" value="Liberty City Mayhem" maxlength="40" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Game Mode</label>
+          <select id="select-host-mode" class="select-box">
+            <option value="freeroam">Freeroam Sandbox</option>
+            <option value="deathmatch">Deathmatch</option>
+            <option value="cops_and_robbers">Cops and Robbers</option>
+            <option value="race">Street Race</option>
+          </select>
+        </div>
+        <div class="btn-row" style="margin-top: 16px; justify-content: flex-end;">
+          <button class="action-btn" id="btn-cancel-host">Cancel</button>
+          <button class="action-btn gold-btn" id="btn-confirm-host">Host Room</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room Browser Modal -->
+  <div class="modal-backdrop" id="modal-rooms">
+    <div class="modal-box" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-title"><span>🌐</span><span>Multiplayer Room Browser</span></div>
+        <button class="modal-close" id="btn-close-rooms">&times;</button>
+      </div>
+      <div style="padding: 16px;">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="form-label">Your Character Name</label>
+          <input type="text" id="input-join-player-name" class="input-text" value="Claude Speed" maxlength="24" />
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="font-size: 12px; color: var(--text-muted);" id="rooms-count-label">Fetching rooms...</span>
+          <button class="action-btn" id="btn-refresh-rooms">🔄 Refresh</button>
+        </div>
+        <div id="rooms-list-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Cloud Relay Configuration & Re3 WASM Engine Script -->
+  <script src="relay_config.js"></script>
+  <script src="engine/re3_wasm.js"></script>
+
+  <!-- Client-side Application Logic -->
+  <script>
+    /* =========================================================================
+     * 1. CONSTANTS, DEFINITIONS & TOASTS
+     * ========================================================================= */
+    const FRAME_DATA = 0x01;
+    const FRAME_PEER_CONNECTED = 0x02;
+    const FRAME_PEER_DISCONNECTED = 0x03;
+    const FRAME_KICK_PEER = 0x04;
+    const FRAME_ROOM_INFO = 0x05;
+    const FRAME_HOST_ASSIGNED = 0x06;
+    const FRAME_REJECTED = 0x07;
+
+    const PKT_PLAYER_STATE = 0x10;
+    const PKT_WORLD_SYNC   = 0x11;
+    const PKT_VEHICLE_SPAWN= 0x12;
+    const PKT_CHAT         = 0x13;
+    const PKT_PVP_HIT      = 0x14;
+    const PKT_AMBIENT_SYNC = 0x15;
+    const PKT_AMBIENT_HIT  = 0x16;
+    const PKT_PEER_NAME    = 0x17;
+    const PKT_RTC_SIGNAL   = 0x30;
+
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: "stun:stun.cloudflare.com:3478" },
+        { urls: "stun:stun.l.google.com:19302" }
+      ]
+    };
+
+    const DEFAULT_WORKER_URL = "https://gta3web.johansans999.workers.dev";
+    function getRelayHttpBase() {
+      const urlParams = new URLSearchParams(location.search);
+      const paramRelay = (urlParams.get("relay") || "").trim();
+      if (paramRelay) {
+        localStorage.setItem("gta3_relay_url", paramRelay);
+      }
+      const explicit = (localStorage.getItem("gta3_relay_url") || window.GTA3_RELAY_URL || "").trim().replace(/\/+$/, "");
+      if (explicit) {
+        if (explicit.startsWith("https://") || explicit.startsWith("http://")) return explicit;
+        if (explicit.startsWith("wss://")) return "https://" + explicit.slice(6);
+        if (explicit.startsWith("ws://")) return "http://" + explicit.slice(5);
+        return "https://" + explicit;
+      }
+      const proto = location.protocol;
+      const host = location.hostname || "";
+      if ((proto === "http:" || proto === "https:") && !host.endsWith(".github.io")) {
+        return location.origin;
+      }
+      return (window.GTA3_DEFAULT_RELAY || DEFAULT_WORKER_URL).replace(/\/+$/, "");
+    }
+
+    function getRelayWsUrl(params) {
+      const httpBase = getRelayHttpBase();
+      const wsBase = httpBase.replace(/^http/i, "ws");
+      return `${wsBase}/api/ws?${params.toString()}`;
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = message;
+      if (type === "success") toast.style.borderLeftColor = "#10b981";
+      if (type === "danger") toast.style.borderLeftColor = "#ef4444";
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.2s";
+        setTimeout(() => toast.remove(), 250);
+      }, 3500);
+    }
+
+    /* =========================================================================
+     * 2. CANVAS RESOLUTION, POINTER LOCK & INPUT INTEGRATION
+     * ========================================================================= */
+    function updateCanvasSize() {
+      const stage = document.getElementById("stage");
+      const canvas = document.getElementById("canvas");
+      if (!stage || !canvas) return;
+      const rect = stage.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = Math.max(320, Math.round(rect.width * dpr));
+      const h = Math.max(240, Math.round(rect.height * dpr));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
+
+    function initInputAndPointerLock() {
+      const canvas = document.getElementById("canvas");
+      const stage = document.getElementById("stage");
+
+      function isTextEntryElement(el) {
+        if (!el) return false;
+        const tag = el.tagName;
+        return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || Boolean(el.isContentEditable);
+      }
+
+      function hasOpenModal() {
+        return Boolean(document.querySelector(".modal-backdrop.open"));
+      }
+
+      function closeAllModals() {
+        document.querySelectorAll(".modal-backdrop.open").forEach((m) => m.classList.remove("open"));
+        window.re3Module?._re3_SetPointerLockActive?.(0);
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+      }
+
+      function isUiCapturingInput() {
+        const chatInputBox = document.getElementById("chat-input-box");
+        return isTextEntryElement(document.activeElement) || hasOpenModal() || Boolean(chatInputBox?.classList.contains("active"));
+      }
+
+      updateCanvasSize();
+      window.addEventListener("resize", updateCanvasSize);
+      document.addEventListener("fullscreenchange", updateCanvasSize);
+      if (window.ResizeObserver && stage) {
+        new ResizeObserver(updateCanvasSize).observe(stage);
+      }
+
+      // Track browser DPR changes across monitors or zoom levels
+      let dprMedia = null;
+      function watchDprChanges() {
+        if (dprMedia) {
+          dprMedia.removeEventListener("change", onDprChange);
+        }
+        if (typeof window.matchMedia === "function") {
+          dprMedia = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+          dprMedia.addEventListener("change", onDprChange);
+        }
+      }
+      function onDprChange() {
+        updateCanvasSize();
+        watchDprChanges();
+      }
+      watchDprChanges();
+
+      // Guard Promise rejection when Emscripten/GLFW calls requestPointerLock() outside a click gesture (e.g. Esc resume)
+      // Also prevent Esc resume (ShutdownJustMenu -> GLFW_CURSOR_DISABLED) from transiently locking & immediately cancelling via pointerlockchange
+      let lastCanvasPointerDownOrClick = 0;
+      let lastMenuEscapeTime = 0;
+      let escapeKeyDown = false;
+      canvas.addEventListener("mousedown", () => { lastCanvasPointerDownOrClick = performance.now(); }, true);
+      canvas.addEventListener("click", () => { lastCanvasPointerDownOrClick = performance.now(); }, true);
+      const rawRequestPointerLock = canvas.requestPointerLock?.bind(canvas);
+      if (rawRequestPointerLock) {
+        canvas.requestPointerLock = function (...args) {
+          try {
+            if (window.re3Module?._re3_IsMenuActive?.()) return undefined;
+            if (document.pointerLockElement === canvas) return undefined;
+            const now = performance.now();
+            const recentEsc = escapeKeyDown || (now - lastMenuEscapeTime < 500);
+            const recentCanvasClick = (now - lastCanvasPointerDownOrClick < 150);
+            if (recentEsc && !recentCanvasClick) return undefined;
+            const res = rawRequestPointerLock(...args);
+            if (res && typeof res.catch === "function") res.catch(() => {});
+            return res;
+          } catch (_) {
+            return undefined;
+          }
+        };
+      }
+
+      // Pointer lock on canvas click
+      canvas.addEventListener("click", () => {
+        const chatInputBox = document.getElementById("chat-input-box");
+        if (chatInputBox?.classList.contains("active")) {
+          chatInputBox.classList.remove("active");
+          document.getElementById("chat-input")?.blur();
+        }
+        const isMenu = Boolean(window.re3Module?._re3_IsMenuActive?.());
+        if (!hasOpenModal() && !isMenu) {
+          if (document.pointerLockElement !== canvas) {
+            canvas.requestPointerLock?.();
+          }
+          canvas.focus();
+        }
+      });
+
+      // Keep RMB and mouse wheel responsive for game aiming/weapon cycling instead of opening browser menus or scrolling
+      canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+      canvas.addEventListener("wheel", (e) => {
+        if (!hasOpenModal() && !window.re3Module?._re3_IsMenuActive?.()) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      let pointerWasLocked = (document.pointerLockElement === canvas);
+      function suppressUnlockPause(ms = 220) {
+        window._re3SuppressUnlockPauseUntil = performance.now() + ms;
+      }
+
+      // Exit pointer lock cleanly when pause menu opens or modal opens;
+      // if Esc caused pointer lock release while in-game, open GTA's pause menu!
+      document.addEventListener("pointerlockchange", () => {
+        const isLockedNow = (document.pointerLockElement === canvas);
+        window.re3Module?._re3_SetPointerLockActive?.(isLockedNow ? 1 : 0);
+        if (isLockedNow) {
+          pointerWasLocked = true;
+          if (window.re3Module?._re3_IsMenuActive?.() || hasOpenModal() || isUiCapturingInput()) {
+            suppressUnlockPause();
+            window.re3Module?._re3_SetPointerLockActive?.(0);
+            try { document.exitPointerLock?.(); } catch (_) {}
+          }
+          return;
+        }
+        const wasLocked = pointerWasLocked;
+        pointerWasLocked = false;
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+        if (
+          wasLocked &&
+          performance.now() > (window._re3SuppressUnlockPauseUntil || 0) &&
+          !document.hidden &&
+          !hasOpenModal() &&
+          !isUiCapturingInput() &&
+          Engine.isPlaying() &&
+          !window.re3Module?._re3_IsMenuActive?.()
+        ) {
+          if (!window.re3Module?._re3_IsMenuActive?.() && window.re3Module?._re3_GetGameState?.() === 9) {
+            window.re3Module?._re3_TogglePauseMenu?.();
+          }
+        }
+      });
+
+      // Poll backup for C++ pause menu cursor release
+      function checkMenuPointerLock() {
+        if (document.pointerLockElement === canvas && window.re3Module?._re3_IsMenuActive?.()) {
+          suppressUnlockPause();
+          window.re3Module?._re3_SetPointerLockActive?.(0);
+          try { document.exitPointerLock?.(); } catch (_) {}
+        }
+        requestAnimationFrame(checkMenuPointerLock);
+      }
+      requestAnimationFrame(checkMenuPointerLock);
+
+      // Clear held keys & release pointer lock on focus loss / tab switch
+      function onFocusLost() {
+        suppressUnlockPause();
+        window.re3Module?._re3_SetPointerLockActive?.(0);
+        if (document.pointerLockElement === canvas) {
+          try { document.exitPointerLock?.(); } catch (_) {}
+        }
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+      }
+      window.addEventListener("keyup", (e) => {
+        if (e.key === "Escape") escapeKeyDown = false;
+      }, true);
+      window.addEventListener("blur", onFocusLost);
+      window.addEventListener("focus", () => {
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+        window.re3Module?._re3_SetPointerLockActive?.(document.pointerLockElement === canvas ? 1 : 0);
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) onFocusLost();
+      });
+
+      // Capture-phase keyboard handler: runs before GLFW capture listeners so chat/modal inputs never leak into GTA III
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "F2") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          document.getElementById("top-bar")?.classList.toggle("hidden");
+          updateCanvasSize();
+          return;
+        }
+        if (e.key === "F3") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const modalSandbox = document.getElementById("modal-sandbox");
+          if (modalSandbox) {
+            if (modalSandbox.classList.contains("open")) {
+              modalSandbox.classList.remove("open");
+              onFocusLost();
+            } else {
+              onFocusLost();
+              modalSandbox.classList.add("open");
+            }
+          }
+          return;
+        }
+        if (e.key === "Escape") {
+          escapeKeyDown = true;
+          if (window.re3Module?._re3_IsMenuActive?.()) {
+            lastMenuEscapeTime = performance.now();
+          }
+          const chatInputBox = document.getElementById("chat-input-box");
+          if (hasOpenModal() || chatInputBox?.classList.contains("active") || isTextEntryElement(document.activeElement)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            onFocusLost();
+            closeAllModals();
+            chatInputBox?.classList.remove("active");
+            if (document.activeElement && document.activeElement !== canvas) {
+              document.activeElement.blur?.();
+            }
+            canvas.focus();
+            return;
+          }
+          if (Engine.isPlaying() && !window.re3Module?._re3_IsMenuActive?.()) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            e.stopPropagation();
+            onFocusLost();
+            window.re3Module?._re3_TogglePauseMenu?.();
+            return;
+          }
+          // Already inside pause menu: allow Escape through to GLFW to goBack / unpause
+          return;
+        }
+        if ((e.key === "t" || e.key === "T") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          if (!isUiCapturingInput() && !window.re3Module?._re3_IsMenuActive?.()) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            onFocusLost();
+            const chatInputBox = document.getElementById("chat-input-box");
+            const chatInput = document.getElementById("chat-input");
+            if (chatInputBox && chatInput) {
+              chatInputBox.classList.add("active");
+              chatInput.focus();
+            }
+            return;
+          }
+        }
+        if (e.key === "Enter" && document.activeElement?.id === "chat-input") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const chatInput = document.activeElement;
+          Network.sendChat(chatInput.value);
+          chatInput.value = "";
+          document.getElementById("chat-input-box")?.classList.remove("active");
+          canvas.focus();
+          return;
+        }
+        if (e.key === "Enter" && document.activeElement?.id === "input-modal-chat") {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          document.getElementById("btn-send-modal-chat")?.click();
+          return;
+        }
+
+        if (isUiCapturingInput()) {
+          e.stopImmediatePropagation();
+          return;
+        }
+
+        const gameKeys = ["Space", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F1", "F4", "F5", "F6", "F7", "F8", "F9", "F10"];
+        if (gameKeys.includes(e.code) || e.key === "Tab" || e.key === " " || e.key.startsWith("Arrow")) {
+          e.preventDefault();
+        }
+      }, { capture: true, passive: false });
+
+      for (const evtName of ["keypress", "keyup"]) {
+        window.addEventListener(evtName, (e) => {
+          if (isUiCapturingInput() || e.key === "F2" || e.key === "F3") {
+            e.stopImmediatePropagation();
+          }
+        }, { capture: true });
+      }
+    }
+
+    /* =========================================================================
+     * 3. INDEXEDDB CACHE HELPER (gta3web-cache-v1)
+     * ========================================================================= */
+    class CacheDB {
+      constructor() {
+        this.db = null;
+      }
+      async open() {
+        if (this.db) return this.db;
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open("gta3web-cache-v1", 1);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains("blobs")) {
+              db.createObjectStore("blobs");
+            }
+          };
+          req.onsuccess = (e) => {
+            this.db = e.target.result;
+            resolve(this.db);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      }
+      async get(key) {
+        try {
+          const db = await this.open();
+          return await new Promise((resolve, reject) => {
+            const tx = db.transaction("blobs", "readonly");
+            const req = tx.objectStore("blobs").get(key);
+            tx.onabort = () => reject(tx.error || req.error || new Error("IDB get aborted"));
+            tx.onerror = () => reject(tx.error || req.error || new Error("IDB get failed"));
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+          });
+        } catch (_) {
+          return null;
+        }
+      }
+      async set(key, val) {
+        try {
+          const db = await this.open();
+          return await new Promise((resolve, reject) => {
+            const tx = db.transaction("blobs", "readwrite");
+            const req = tx.objectStore("blobs").put(val, key);
+            tx.oncomplete = () => resolve();
+            tx.onabort = () => reject(tx.error || req.error || new Error("IDB put aborted"));
+            tx.onerror = () => reject(tx.error || req.error || new Error("IDB put failed"));
+            req.onerror = () => reject(req.error);
+          });
+        } catch (_) {}
+      }
+    }
+    const cacheDB = new CacheDB();
+
+    /* =========================================================================
+     * 4. ASSET DECOMPRESSION & FS LOADER
+     * ========================================================================= */
+    async function decompressGzip(response) {
+      const ds = new DecompressionStream("gzip");
+      const decompressed = await new Response(response.body.pipeThrough(ds)).arrayBuffer();
+      return new Uint8Array(decompressed);
+    }
+
+    const RADIO_TRACKS = [
+      "HEAD.mp3", "CLASS.mp3", "KJAH.mp3", "RISE.mp3",
+      "LIPS.mp3", "GAME.mp3", "MSX.mp3", "FLASH.mp3",
+      "CHAT.mp3", "police.mp3"
+    ];
+
+    function toUint8Array(data) {
+      if (!data) return null;
+      return data instanceof Uint8Array ? data : new Uint8Array(data);
+    }
+
+    async function loadCachedAudioTrack(track) {
+      const cacheKey = `audio/${track}`;
+      const cached = toUint8Array(await cacheDB.get(cacheKey));
+      if (cached) return cached;
+      const resp = await fetch(cacheKey);
+      if (!resp.ok) {
+        throw new Error(`Failed to fetch ${cacheKey} (${resp.status})`);
+      }
+      const bytes = new Uint8Array(await resp.arrayBuffer());
+      await cacheDB.set(cacheKey, bytes);
+      return bytes;
+    }
+
+    async function loadSlicedAsset(assetKey, assetMeta, label, basePct, spanPct, updateProgress) {
+      // Preserve compatibility with existing full-blob cache entries when present
+      const legacyCached = toUint8Array(await cacheDB.get(assetKey));
+      if (legacyCached) return legacyCached;
+
+      const fullBuf = new Uint8Array(assetMeta.totalRawSize);
+      const slices = assetMeta.slices;
+      for (let i = 0; i < slices.length; i++) {
+        const slice = slices[i];
+        const sliceKey = `${assetKey}::${slice.file}`;
+        let partBuf = toUint8Array(await cacheDB.get(sliceKey));
+        if (!partBuf) {
+          const pct = Math.round(basePct + (i / slices.length) * spanPct);
+          updateProgress(`Downloading ${label} (${i + 1}/${slices.length})...`, pct, `Slice: ${slice.file}`);
+          const resp = await fetch(`chunks/${slice.file}`);
+          if (!resp.ok) throw new Error(`Failed to fetch ${slice.file} (${resp.status})`);
+          partBuf = await decompressGzip(resp);
+          await cacheDB.set(sliceKey, partBuf);
+        }
+        fullBuf.set(partBuf, slice.rawOffset);
+      }
+      return fullBuf;
+    }
+
+    async function loadGameAssets(instance, updateProgress) {
+      updateProgress("Loading asset manifest...", 5, "Fetching chunks/manifest.json");
+      const manifestResp = await fetch("chunks/manifest.json");
+      if (!manifestResp.ok) throw new Error("Failed to load chunks/manifest.json");
+      const manifest = await manifestResp.json();
+
+      // 1. gta3_base.pack (41,491,876 bytes)
+      let basePack = toUint8Array(await cacheDB.get("gta3_base.pack"));
+      if (!basePack) {
+        updateProgress("Downloading game data...", 15, "Fetching chunks/gta3_base.pack.gz (10.28 MB)");
+        const resp = await fetch(`chunks/${manifest.basePack.file}`);
+        if (!resp.ok) throw new Error(`Failed to fetch ${manifest.basePack.file} (${resp.status})`);
+        basePack = await decompressGzip(resp);
+        await cacheDB.set("gta3_base.pack", basePack);
+      }
+      updateProgress("Unpacking core configuration...", 28, "Writing 171 data files into game filesystem");
+
+      const magic = String.fromCharCode(...basePack.subarray(0, 4));
+      if (magic !== "GTA3") throw new Error("Invalid pack header magic: " + magic);
+      const view = new DataView(basePack.buffer, basePack.byteOffset, basePack.byteLength);
+      const jsonLen = view.getUint32(4, true);
+      const jsonStr = new TextDecoder().decode(basePack.subarray(8, 8 + jsonLen));
+      const fileEntries = JSON.parse(jsonStr);
+      const dataOffset = 8 + jsonLen;
+
+      for (const entry of fileEntries) {
+        const fullPath = "/game/" + entry.path;
+        const lastSlash = fullPath.lastIndexOf("/");
+        if (lastSlash !== -1) {
+          const dir = fullPath.slice(0, lastSlash);
+          instance.FS.mkdirTree(dir);
+        }
+        const slice = basePack.subarray(dataOffset + entry.offset, dataOffset + entry.offset + entry.size);
+        instance.FS.writeFile(fullPath, slice);
+      }
+
+      // 2. models/gta3.img (170,891,264 bytes) — cached per <=38 MB slice for Incognito IDB compatibility
+      const imgBuf = await loadSlicedAsset("models/gta3.img", manifest.gta3Img, "3D World Geometry", 30, 35, updateProgress);
+      updateProgress("Writing 3D world geometry...", 68, "Mounting /game/models/gta3.img");
+      instance.FS.mkdirTree("/game/models");
+      instance.FS.writeFile("/game/models/gta3.img", imgBuf);
+
+      // 3. audio/sfx.RAW (80,849,468 bytes) — cached per <=17 MB slice
+      const sfxBuf = await loadSlicedAsset("audio/sfx.RAW", manifest.sfxRaw, "Sound Effects", 70, 20, updateProgress);
+      updateProgress("Writing sound effects...", 92, "Mounting /game/audio/sfx.RAW");
+      instance.FS.mkdirTree("/game/audio");
+      instance.FS.writeFile("/game/audio/sfx.RAW", sfxBuf);
+
+      // 4. Pre-mount ambient audio (with IndexedDB caching) + any already-cached radio stations
+      updateProgress("Caching ambient tracks...", 95, "Loading City.mp3 and Water.mp3");
+      const [cityBuf, waterBuf] = await Promise.all([
+        loadCachedAudioTrack("City.mp3"),
+        loadCachedAudioTrack("Water.mp3")
+      ]);
+      instance.FS.writeFile("/game/audio/City.mp3", cityBuf);
+      instance.FS.writeFile("/game/audio/Water.mp3", waterBuf);
+
+      let cachedRadioCount = 0;
+      const cachedRadios = await Promise.all(
+        RADIO_TRACKS.map(async (track) => ({ track, bytes: toUint8Array(await cacheDB.get(`audio/${track}`)) }))
+      );
+      for (const item of cachedRadios) {
+        if (item.bytes) {
+          instance.FS.writeFile(`/game/audio/${item.track}`, item.bytes);
+          cachedRadioCount++;
+        }
+      }
+      if (cachedRadioCount > 0) {
+        updateProgress("Mounted cached radio...", 97, `Loaded ${cachedRadioCount}/${RADIO_TRACKS.length} radio tracks from IndexedDB`);
+      }
+
+      // 5. Mount or restore save directory at /game/userfiles (IDBFS when linked, otherwise CacheDB fallback)
+      instance.FS.mkdirTree("/game/userfiles");
+      let usingIdbfs = false;
+      if (instance.FS.filesystems?.IDBFS) {
+        try {
+          instance.FS.mount(instance.FS.filesystems.IDBFS, {}, "/game/userfiles");
+          await new Promise((resolve) => instance.FS.syncfs(true, () => resolve()));
+          usingIdbfs = true;
+        } catch (err) {
+          console.warn("[Re3Saves] IDBFS mount failed, using IndexedDB fallback:", err?.message || err);
+        }
+      }
+      if (!usingIdbfs) {
+        try {
+          const saveList = await cacheDB.get("userfiles/__manifest");
+          if (Array.isArray(saveList)) {
+            for (const name of saveList) {
+              const fileBytes = toUint8Array(await cacheDB.get(`userfiles/${name}`));
+              if (fileBytes) {
+                instance.FS.writeFile(`/game/userfiles/${name}`, fileBytes);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Expose Re3Saves hook
+      window.Re3Saves = {
+        onSaveDirChanged(reason, filename) {
+          if (usingIdbfs) {
+            instance.FS.syncfs(false, (err) => {
+              if (!err) console.log("[Re3Saves] Synced save files to IDBFS:", reason, filename);
+            });
+            return;
+          }
+          (async () => {
+            try {
+              const entries = instance.FS.readdir("/game/userfiles")
+                .filter((name) => name !== "." && name !== "..");
+              const savedNames = [];
+              for (const name of entries) {
+                const fullPath = `/game/userfiles/${name}`;
+                const st = instance.FS.stat(fullPath);
+                if (instance.FS.isFile(st.mode)) {
+                  const data = instance.FS.readFile(fullPath);
+                  await cacheDB.set(`userfiles/${name}`, data);
+                  savedNames.push(name);
+                }
+              }
+              await cacheDB.set("userfiles/__manifest", savedNames);
+              console.log("[Re3Saves] Synced save files to IndexedDB:", reason, filename, savedNames);
+            } catch (err) {
+              console.warn("[Re3Saves] IndexedDB save sync error:", err?.message || err);
+            }
+          })();
+        }
+      };
+
+      updateProgress("Engine Ready!", 100, "Liberty City Assets Loaded");
+    }
+
+    function startBackgroundRadioLoader(instance) {
+      let idx = 0;
+      async function fetchNext() {
+        if (idx >= RADIO_TRACKS.length) return;
+        const track = RADIO_TRACKS[idx++];
+        const fsPath = `/game/audio/${track}`;
+        try {
+          if (instance.FS.analyzePath(fsPath).exists) {
+            setTimeout(fetchNext, 0);
+            return;
+          }
+          const bytes = await loadCachedAudioTrack(track);
+          instance.FS.writeFile(fsPath, bytes);
+          console.log(`[Radio Loader] Cached /game/audio/${track} (${bytes.byteLength} bytes)`);
+          setTimeout(fetchNext, 600);
+        } catch (err) {
+          console.warn(`[Radio Loader] Deferred ${track}:`, err?.message || err);
+          setTimeout(fetchNext, 1500);
+        }
+      }
+      setTimeout(fetchNext, 2500);
+    }
+
+    /* =========================================================================
+     * 5. C++ ENGINE INTERFACE WRAPPER (window.re3Module)
+     * ========================================================================= */
+    const Engine = {
+      isPlaying() {
+        try {
+          return typeof window.re3Module?._re3_GetGameState === "function" && window.re3Module._re3_GetGameState() === 9;
+        } catch (_) {
+          return false;
+        }
+      },
+      _callPlaying(fnName, fn) {
+        if (!this.isPlaying()) return undefined;
+        try {
+          const exportFn = window.re3Module?.[fnName];
+          if (typeof exportFn === "function") {
+            return fn(exportFn);
+          }
+        } catch (e) {
+          console.warn(`${fnName} error:`, e);
+        }
+        return undefined;
+      },
+      unlockAllSandbox() {
+        this._callPlaying("_mp_unlock_all_sandbox", (fn) => {
+          fn();
+          showToast("🔓 All 3 Islands, Bridges & Tunnels Unlocked!", "success");
+        });
+      },
+      setPlayerName(name) {
+        try {
+          if (window.re3Module?.ccall) {
+            window.re3Module.ccall("mp_set_player_name", null, ["string"], [name]);
+          }
+        } catch (_) {}
+      },
+      setPlayerModel(modelId) {
+        this._callPlaying("_mp_set_player_model", (fn) => {
+          fn(modelId);
+          showToast(`👤 Model changed to #${modelId}`, "info");
+        });
+      },
+      addMoney(amount) {
+        this._callPlaying("_mp_add_money", (fn) => {
+          fn(amount);
+          showToast(`💰 Added $${amount.toLocaleString()}`, "success");
+        });
+      },
+      setHealthArmor(health = 100, armor = 100) {
+        this._callPlaying("_mp_set_health_armor", (fn) => {
+          fn(health, armor);
+          showToast("❤️ Health & Armor Maxed + Vehicle Fixed!", "success");
+        });
+      },
+      setWantedLevel(stars, neverWanted = 0) {
+        this._callPlaying("_mp_set_wanted_level", (fn) => {
+          fn(stars, neverWanted ? 1 : 0);
+          showToast(`⭐ Wanted Level set to ${stars}★`, "info");
+        });
+      },
+      giveWeapon(weaponType, ammo = 250) {
+        this._callPlaying("_mp_give_weapon", (fn) => {
+          fn(weaponType, ammo);
+          showToast(`🔫 Weapon #${weaponType} given (+${ammo})`, "info");
+        });
+      },
+      giveAllWeapons() {
+        this._callPlaying("_mp_give_all_weapons", (fn) => {
+          fn();
+          showToast("🎒 All Weapons Given (9999 Ammo)!", "success");
+        });
+      },
+      spawnVehicle(modelId, col1 = -1, col2 = -1, warp = 1) {
+        const netId = this._callPlaying("_mp_spawn_vehicle", (fn) => {
+          const id = fn(modelId, col1, col2, warp ? 1 : 0);
+          showToast(`🚗 Vehicle #${modelId} spawned!`, "success");
+          Network.broadcastVehicleSpawn(modelId, col1, col2);
+          return id;
+        });
+        return netId || 0;
+      },
+      teleport(x, y, z) {
+        this._callPlaying("_mp_teleport", (fn) => {
+          fn(x, y, z);
+          showToast(`📍 Teleported to (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`, "info");
+        });
+      },
+      teleportToPeer(peerId) {
+        if (!this.isPlaying()) return;
+        const peer = Network.peers.get(peerId);
+        if (peer && peer.lastPos) {
+          this.teleport(peer.lastPos.x, peer.lastPos.y, peer.lastPos.z + 1.0);
+          showToast(`📍 Teleported to ${peer.name}!`, "success");
+        } else {
+          showToast("Player coordinates not received yet", "info");
+        }
+      },
+      setWeatherTime(weatherId, hour, minute) {
+        this._callPlaying("_mp_set_weather_time", (fn) => fn(weatherId, hour, minute));
+      },
+      setCheatToggle(cheatId, enabled) {
+        this._callPlaying("_mp_set_cheat_toggle", (fn) => fn(cheatId, enabled ? 1 : 0));
+      },
+      applyPvpHit(damage, weaponType) {
+        this._callPlaying("_mp_apply_pvp_damage", (fn) => fn(damage, weaponType));
+      }
+    };
+
+    /* =========================================================================
+     * 6. MULTIPLAYER NETWORK MANAGER (WebSocket Relay + WebRTC P2P DataChannels)
+     * ========================================================================= */
+    const Network = {
+      ws: null,
+      roomPort: 7777,
+      myPeerId: 0,
+      isHost: false,
+      playerName: localStorage.getItem("gta3_player_name") || "Claude Speed",
+      peers: new Map(), // peerId -> { peerId, name, pc, dc, lastPos, lastSeen }
+      syncInterval: null,
+      stateScratchPtr: null,
+      nameScratchPtr: null,
+      ambScratchPtr: null,
+      ambMaxBytes: 2048,
+      lastAppliedNetMode: 0,
+      _scratchModule: null,
+      rxFloatView: null,
+      _warnedMissingMalloc: false,
+      pendingWorldSync: null,
+
+      encodePlayerName(name) {
+        const bytes = new TextEncoder().encode(String(name || "Claude Speed").trim() || "Claude Speed");
+        return bytes.length > 24 ? bytes.subarray(0, 24) : bytes;
+      },
+
+      setPlayerName(rawName, persistDefault = true) {
+        const cleaned = String(rawName ?? "").slice(0, 24);
+        const effective = cleaned.trim() || (persistDefault ? "Claude Speed" : "");
+        const finalName = effective || "Claude Speed";
+        this.playerName = finalName;
+        if (persistDefault) {
+          localStorage.setItem("gta3_player_name", finalName);
+        }
+        Engine.setPlayerName(finalName);
+
+        for (const id of ["input-player-name", "input-host-player-name", "input-join-player-name"]) {
+          const el = document.getElementById(id);
+          if (el && document.activeElement !== el) {
+            el.value = finalName;
+          }
+        }
+        this.updateRosterUI();
+
+        if (this.myPeerId > 0) {
+          const nameBytes = this.encodePlayerName(finalName);
+          const pkt = new Uint8Array(2 + nameBytes.length);
+          pkt[0] = PKT_PEER_NAME;
+          pkt[1] = this.myPeerId;
+          pkt.set(nameBytes, 2);
+          this.sendToPeersOrRelay(pkt, null, 2);
+        }
+      },
+
+      ensureScratchPtrs(mod) {
+        if (!mod) return false;
+        if (this._scratchModule !== mod) {
+          this._scratchModule = mod;
+          this.stateScratchPtr = null;
+          this.nameScratchPtr = null;
+          this.ambScratchPtr = null;
+          this.lastAppliedNetMode = -1;
+        }
+        if (typeof mod._malloc !== "function") {
+          if (!this._warnedMissingMalloc) {
+            this._warnedMissingMalloc = true;
+            console.warn("[Multiplayer] window.re3Module._malloc not exported; deferring C++ peer sync until WASM rebuild.");
+          }
+          return false;
+        }
+        if (!this.stateScratchPtr) {
+          this.stateScratchPtr = mod._malloc(28 * 4);
+        }
+        if (!this.nameScratchPtr) {
+          this.nameScratchPtr = mod._malloc(32);
+        }
+        if (!this.ambScratchPtr) {
+          this.ambScratchPtr = mod._malloc(this.ambMaxBytes);
+        }
+        return Boolean(this.stateScratchPtr && this.nameScratchPtr && this.ambScratchPtr);
+      },
+
+      init() {
+        this.setPlayerName(this.playerName, false);
+      },
+
+      connect(port = 7777, role = "auto", name = null, roomName = null, mode = "freeroam") {
+        if (this.ws) this.disconnect();
+        this.roomPort = port;
+        if (name) this.playerName = name;
+        localStorage.setItem("gta3_player_name", this.playerName);
+        Engine.setPlayerName(this.playerName);
+
+        const params = new URLSearchParams({
+          room: String(port),
+          name: this.playerName,
+          role: role,
+          mode: mode
+        });
+        if (roomName) params.set("roomName", roomName);
+
+        const wsUrl = getRelayWsUrl(params);
+        this.updatePill("Connecting...", "waiting");
+
+        try {
+          const ws = new WebSocket(wsUrl);
+          ws.binaryType = "arraybuffer";
+          this.ws = ws;
+
+          ws.onopen = () => {
+            console.log("[Multiplayer] Connected to relay:", wsUrl);
+          };
+
+          ws.onmessage = (e) => this.handleMessage(e.data);
+
+          ws.onclose = () => {
+            console.log("[Multiplayer] Socket disconnected");
+            if (this.ws === ws) {
+              this.handleDisconnect();
+            }
+          };
+
+          ws.onerror = (err) => {
+            console.error("[Multiplayer] WebSocket error:", err);
+          };
+        } catch (e) {
+          showToast("Failed to connect: " + e.message, "danger");
+          this.updatePill("Offline", "offline");
+        }
+      },
+
+      disconnect() {
+        if (this.ws) {
+          const oldWs = this.ws;
+          this.ws = null;
+          oldWs.onopen = oldWs.onmessage = oldWs.onclose = oldWs.onerror = null;
+          try { oldWs.close(); } catch (_) {}
+        }
+        this.handleDisconnect();
+      },
+
+      handleDisconnect() {
+        if (this.syncInterval) {
+          clearInterval(this.syncInterval);
+          this.syncInterval = null;
+        }
+        for (const [id, p] of this.peers.entries()) {
+          if (p.dc) { try { p.dc.close(); } catch (_) {} }
+          if (p.pc) { try { p.pc.close(); } catch (_) {} }
+          try {
+            if (Engine.isPlaying() && window.re3Module?._mp_remove_remote_peer) {
+              window.re3Module._mp_remove_remote_peer(id);
+            }
+          } catch (_) {}
+        }
+        this.peers.clear();
+        this.pendingWorldSync = null;
+        this.ws = null;
+        this.myPeerId = 0;
+        this.isHost = false;
+        this.lastAppliedNetMode = 0;
+        try {
+          if (Engine.isPlaying() && typeof window.re3Module?._mp_set_net_mode === "function") {
+            window.re3Module._mp_set_net_mode(0);
+          }
+        } catch (_) {}
+        this.updatePill("Offline", "offline");
+        document.getElementById("btn-copy-invite").style.display = "none";
+        document.getElementById("btn-leave-room").style.display = "none";
+        this.updateRosterUI();
+      },
+
+      updatePill(text, state) {
+        const pill = document.getElementById("net-status-pill");
+        const label = document.getElementById("net-status-text");
+        pill.className = state === "online" ? "online" : (state === "waiting" ? "waiting" : "");
+        label.textContent = `Multiplayer: ${text}`;
+      },
+
+      sendFrame(uint8Arr) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(uint8Arr);
+        }
+      },
+
+      sendToPeersOrRelay(pktPayload, preframedFrame = null, channel = 2) {
+        let p2pCount = 0;
+        let totalRemote = 0;
+
+        for (const [, peer] of this.peers.entries()) {
+          totalRemote++;
+          if (peer.dc && peer.dc.readyState === "open") {
+            try {
+              peer.dc.send(pktPayload);
+              p2pCount++;
+            } catch (_) {}
+          }
+        }
+
+        if (totalRemote > 0 && p2pCount < totalRemote) {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            if (preframedFrame) {
+              this.sendFrame(preframedFrame);
+            } else {
+              const frame = new Uint8Array(4 + pktPayload.length);
+              frame[0] = FRAME_DATA;
+              frame[1] = 0;
+              frame[2] = 0;
+              frame[3] = channel;
+              frame.set(pktPayload, 4);
+              this.sendFrame(frame);
+            }
+          }
+        }
+      },
+
+      sendRtcSignal(targetPeerId, signalData) {
+        const jsonBytes = new TextEncoder().encode(JSON.stringify(signalData));
+        const frame = new Uint8Array(4 + 3 + jsonBytes.length);
+        frame[0] = FRAME_DATA;
+        frame[1] = (targetPeerId >> 8) & 0xff;
+        frame[2] = targetPeerId & 0xff;
+        frame[3] = 1; // Reliable channel
+        frame[4] = PKT_RTC_SIGNAL;
+        frame[5] = targetPeerId;
+        frame[6] = this.myPeerId;
+        frame.set(jsonBytes, 7);
+        this.sendFrame(frame);
+      },
+
+      initiateRtcConnection(remotePeerId) {
+        const peer = this.peers.get(remotePeerId);
+        if (!peer || peer.pc) return;
+
+        console.log(`[WebRTC] Initiating P2P connection to Peer ${remotePeerId}...`);
+        const pc = new RTCPeerConnection(RTC_CONFIG);
+        peer.pc = pc;
+
+        const dc = pc.createDataChannel("gta3-p2p", { ordered: false, maxRetransmits: 0 });
+        peer.dc = dc;
+        this.setupDataChannel(remotePeerId, dc);
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            this.sendRtcSignal(remotePeerId, { type: "candidate", candidate: e.candidate });
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          console.log(`[WebRTC] Peer ${remotePeerId} connectionState:`, pc.connectionState);
+          this.updateRosterUI();
+        };
+
+        pc.createOffer().then((offer) => {
+          return pc.setLocalDescription(offer);
+        }).then(() => {
+          this.sendRtcSignal(remotePeerId, { type: "offer", sdp: pc.localDescription });
+        }).catch((err) => {
+          console.warn(`[WebRTC] Error creating offer for peer ${remotePeerId}:`, err);
+        });
+      },
+
+      async handleRtcSignal(remotePeerId, signal) {
+        let peer = this.peers.get(remotePeerId);
+        if (!peer) {
+          peer = { peerId: remotePeerId, name: `Player ${remotePeerId}`, lastSeen: Date.now() };
+          this.peers.set(remotePeerId, peer);
+        }
+
+        if (signal.type === "offer") {
+          console.log(`[WebRTC] Received offer from Peer ${remotePeerId}`);
+          if (peer.pc) {
+            try { peer.pc.close(); } catch (_) {}
+          }
+          const pc = new RTCPeerConnection(RTC_CONFIG);
+          peer.pc = pc;
+
+          pc.ondatachannel = (e) => {
+            peer.dc = e.channel;
+            this.setupDataChannel(remotePeerId, e.channel);
+          };
+
+          pc.onicecandidate = (e) => {
+            if (e.candidate) {
+              this.sendRtcSignal(remotePeerId, { type: "candidate", candidate: e.candidate });
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Peer ${remotePeerId} connectionState:`, pc.connectionState);
+            this.updateRosterUI();
+          };
+
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            this.sendRtcSignal(remotePeerId, { type: "answer", sdp: pc.localDescription });
+          } catch (err) {
+            console.warn(`[WebRTC] Error handling offer from peer ${remotePeerId}:`, err);
+          }
+        } else if (signal.type === "answer") {
+          console.log(`[WebRTC] Received answer from Peer ${remotePeerId}`);
+          if (peer.pc) {
+            try {
+              await peer.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            } catch (err) {
+              console.warn(`[WebRTC] Error setting remote answer for peer ${remotePeerId}:`, err);
+            }
+          }
+        } else if (signal.type === "candidate") {
+          if (peer.pc && signal.candidate) {
+            try {
+              await peer.pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            } catch (err) {
+              console.warn(`[WebRTC] Error adding ICE candidate for peer ${remotePeerId}:`, err);
+            }
+          }
+        }
+      },
+
+      setupDataChannel(remotePeerId, dc) {
+        dc.binaryType = "arraybuffer";
+        dc.onopen = () => {
+          console.log(`[WebRTC] DataChannel 'gta3-p2p' OPEN with Peer ${remotePeerId}!`);
+          const peer = this.peers.get(remotePeerId);
+          const name = peer ? peer.name : `Peer ${remotePeerId}`;
+          showToast(`⚡ Direct WebRTC P2P active with ${name}!`, "success");
+          this.updateRosterUI();
+        };
+        dc.onclose = () => {
+          console.log(`[WebRTC] DataChannel closed with Peer ${remotePeerId}`);
+          this.updateRosterUI();
+        };
+        dc.onerror = (err) => console.warn(`[WebRTC] DataChannel error with Peer ${remotePeerId}:`, err);
+        dc.onmessage = (e) => {
+          this.handlePayload(remotePeerId, new Uint8Array(e.data));
+        };
+      },
+
+      handleMessage(data) {
+        const bytes = new Uint8Array(data);
+        if (bytes.length < 4) return;
+        const frameType = bytes[0];
+
+        // 1. FRAME_HOST_ASSIGNED (0x06): [0x06, portHi, portLo, assignedPeerId]
+        if (frameType === FRAME_HOST_ASSIGNED) {
+          const prevPeerId = this.myPeerId;
+          const port = (bytes[1] << 8) | bytes[2];
+          this.roomPort = port;
+          this.myPeerId = bytes[3];
+          this.isHost = (this.myPeerId === 1);
+          this.lastAppliedNetMode = -1;
+          try {
+            if (Engine.isPlaying() && typeof window.re3Module?._mp_set_net_mode === "function") {
+              const mode = this.isHost ? 1 : 2;
+              window.re3Module._mp_set_local_peer_id?.(this.myPeerId);
+              window.re3Module._mp_set_net_mode(mode);
+              this.lastAppliedNetMode = mode;
+            }
+          } catch (_) {}
+          Engine.setPlayerName(this.playerName);
+          console.log(`[Multiplayer] Assigned Peer ID ${this.myPeerId} (Host: ${this.isHost}) in Room ${port}`);
+          this.updatePill(`Room #${port} (Player ${this.myPeerId}${this.isHost ? " - Host" : ""})`, "online");
+          document.getElementById("btn-copy-invite").style.display = "inline-flex";
+          document.getElementById("btn-leave-room").style.display = "inline-flex";
+
+          // On host promotion (e.g. Peer 2 -> 1), close stale P2P sockets before re-negotiating
+          if (prevPeerId && prevPeerId !== this.myPeerId) {
+            this.peers.delete(this.myPeerId);
+            for (const p of this.peers.values()) {
+              if (p.dc) { try { p.dc.close(); } catch (_) {} }
+              if (p.pc) { try { p.pc.close(); } catch (_) {} }
+              p.dc = null;
+              p.pc = null;
+            }
+          }
+
+          this.updateRosterUI();
+
+          // If we have existing peers and our ID is lower, initiate P2P
+          for (const [id, peer] of this.peers.entries()) {
+            if (id !== this.myPeerId && this.myPeerId < id && !peer.pc) {
+              this.initiateRtcConnection(id);
+            }
+          }
+
+          // Start 25 Hz state sync loop
+          this.startSyncLoop();
+          return;
+        }
+
+        // 2. FRAME_PEER_CONNECTED (0x02): [0x02, peerHi, peerLo, 0, ...utf8Name]
+        if (frameType === FRAME_PEER_CONNECTED) {
+          const peerId = (bytes[1] << 8) | bytes[2];
+          if (peerId !== this.myPeerId) {
+            const peerName = new TextDecoder().decode(bytes.subarray(4)) || `Player ${peerId}`;
+            let peer = this.peers.get(peerId);
+            if (!peer) {
+              peer = { peerId, name: peerName, lastSeen: Date.now() };
+              this.peers.set(peerId, peer);
+            } else {
+              peer.name = peerName;
+            }
+            showToast(`👥 ${peerName} joined the room!`, "info");
+            this.updateRosterUI();
+
+            // WebRTC handshake: lower ID initiates offer
+            if (this.myPeerId > 0 && this.myPeerId < peerId && !peer.pc) {
+              this.initiateRtcConnection(peerId);
+            }
+          }
+          return;
+        }
+
+        // 3. FRAME_PEER_DISCONNECTED (0x03): [0x03, peerHi, peerLo, 0]
+        if (frameType === FRAME_PEER_DISCONNECTED) {
+          const peerId = (bytes[1] << 8) | bytes[2];
+          const peer = this.peers.get(peerId);
+          if (peer) {
+            showToast(`👋 ${peer.name} left the room`, "info");
+            if (peer.dc) { try { peer.dc.close(); } catch (_) {} }
+            if (peer.pc) { try { peer.pc.close(); } catch (_) {} }
+            this.peers.delete(peerId);
+            try {
+              if (Engine.isPlaying() && window.re3Module?._mp_remove_remote_peer) {
+                window.re3Module._mp_remove_remote_peer(peerId);
+              }
+            } catch (_) {}
+            this.updateRosterUI();
+          }
+          return;
+        }
+
+        // 4. FRAME_ROOM_INFO (0x05): [0x05, 0, 0, 0, ...json]
+        if (frameType === FRAME_ROOM_INFO && bytes.length > 4) {
+          try {
+            const info = JSON.parse(new TextDecoder().decode(bytes.subarray(4)));
+            if (info.players) {
+              for (const p of info.players) {
+                if (p.peerId !== this.myPeerId) {
+                  let peer = this.peers.get(p.peerId);
+                  if (!peer) {
+                    peer = { peerId: p.peerId, name: p.name, lastSeen: Date.now() };
+                    this.peers.set(p.peerId, peer);
+                    if (this.myPeerId > 0 && this.myPeerId < p.peerId && !peer.pc) {
+                      this.initiateRtcConnection(p.peerId);
+                    }
+                  } else {
+                    peer.name = p.name;
+                  }
+                }
+              }
+              this.updateRosterUI();
+            }
+          } catch (_) {}
+          return;
+        }
+
+        // 5. FRAME_REJECTED (0x07)
+        if (frameType === FRAME_REJECTED) {
+          const reason = new TextDecoder().decode(bytes.subarray(4)) || "Connection rejected";
+          showToast(`❌ ${reason}`, "danger");
+          this.disconnect();
+          return;
+        }
+
+        // 6. FRAME_DATA (0x01): [0x01, senderHi, senderLo, channel, ...payload]
+        if (frameType === FRAME_DATA && bytes.length > 4) {
+          const senderId = (bytes[1] << 8) | bytes[2];
+          const payload = bytes.subarray(4);
+          this.handlePayload(senderId, payload);
+        }
+      },
+
+      handlePayload(senderId, payload) {
+        if (payload.length < 1) return;
+        const pktType = payload[0];
+        if (senderId === this.myPeerId && pktType !== PKT_RTC_SIGNAL) return;
+
+        // PKT_PLAYER_STATE (0x10): [0x10, peerId, nameLen, ...name, ...112 bytes float32]
+        if (pktType === PKT_PLAYER_STATE && payload.length >= 115) {
+          const nameLen = payload[2];
+          const floatOffset = 3 + nameLen;
+          if (payload.length >= floatOffset + 112) {
+            try {
+              if (!this.rxFloatView) {
+                this.rxFloatView = new Float32Array(28);
+              }
+              const dv = new DataView(payload.buffer, payload.byteOffset + floatOffset, 112);
+              for (let i = 0; i < 28; i++) {
+                this.rxFloatView[i] = dv.getFloat32(i * 4, true);
+              }
+
+              const peer = this.peers.get(senderId);
+              if (peer) {
+                peer.lastPos = { x: this.rxFloatView[0], y: this.rxFloatView[1], z: this.rxFloatView[2] };
+                peer.lastSeen = Date.now();
+              }
+
+              const mod = window.re3Module;
+              if (mod && Engine.isPlaying() && this.ensureScratchPtrs(mod)) {
+                mod.HEAPF32.set(this.rxFloatView, this.stateScratchPtr >> 2);
+                const safeNameLen = Math.min(nameLen, 31);
+                const nameBytes = payload.subarray(3, 3 + safeNameLen);
+                mod.HEAPU8.set(nameBytes, this.nameScratchPtr);
+                mod.HEAPU8[this.nameScratchPtr + safeNameLen] = 0;
+
+                if (typeof mod._mp_sync_remote_peer === "function") {
+                  mod._mp_sync_remote_peer(senderId, this.nameScratchPtr, this.stateScratchPtr);
+                }
+              }
+            } catch (_) {}
+          }
+          return;
+        }
+
+        // PKT_RTC_SIGNAL (0x30): [0x30, targetPeerId, originSenderId, ...utf8Json]
+        if (pktType === PKT_RTC_SIGNAL && payload.length > 3) {
+          const targetPeerId = payload[1];
+          const originSenderId = payload[2];
+          const signalJson = new TextDecoder().decode(payload.subarray(3));
+
+          if (targetPeerId === this.myPeerId) {
+            try {
+              const signal = JSON.parse(signalJson);
+              this.handleRtcSignal(originSenderId, signal);
+            } catch (_) {}
+          } else if (this.isHost && targetPeerId !== 1) {
+            // Forward signal to target client
+            const fwdFrame = new Uint8Array(4 + payload.length);
+            fwdFrame[0] = FRAME_DATA;
+            fwdFrame[1] = (targetPeerId >> 8) & 0xff;
+            fwdFrame[2] = targetPeerId & 0xff;
+            fwdFrame[3] = 1;
+            fwdFrame.set(payload, 4);
+            this.sendFrame(fwdFrame);
+          }
+          return;
+        }
+
+        // PKT_WORLD_SYNC (0x11): [0x11, weatherId, hour, minute]
+        if (pktType === PKT_WORLD_SYNC && payload.length >= 4) {
+          if (Engine.isPlaying()) {
+            Engine.setWeatherTime(payload[1], payload[2], payload[3]);
+          } else {
+            this.pendingWorldSync = { weatherId: payload[1], hour: payload[2], minute: payload[3] };
+          }
+          return;
+        }
+
+        // PKT_VEHICLE_SPAWN (0x12): [0x12, modelHi, modelLo, col1, col2]
+        if (pktType === PKT_VEHICLE_SPAWN && payload.length >= 5) {
+          if (!Engine.isPlaying()) return;
+          const modelId = (payload[1] << 8) | payload[2];
+          const col1 = payload[3] === 255 ? -1 : payload[3];
+          const col2 = payload[4] === 255 ? -1 : payload[4];
+          try {
+            if (window.re3Module?._mp_spawn_vehicle) {
+              window.re3Module._mp_spawn_vehicle(modelId, col1, col2, 0);
+            }
+          } catch (_) {}
+          return;
+        }
+
+        // PKT_CHAT (0x13): [0x13, senderId, nameLen, ...name, ...msg]
+        if (pktType === PKT_CHAT && payload.length > 3) {
+          const nameLen = payload[2];
+          const name = new TextDecoder().decode(payload.subarray(3, 3 + nameLen));
+          const text = new TextDecoder().decode(payload.subarray(3 + nameLen));
+          this.displayChat(name, text);
+          return;
+        }
+
+        // PKT_PVP_HIT (0x14): [0x14, targetPeerId, damage, weaponType]
+        if (pktType === PKT_PVP_HIT && payload.length >= 4) {
+          if (payload[1] === this.myPeerId && Engine.isPlaying()) {
+            Engine.applyPvpHit(payload[2], payload[3]);
+          }
+          return;
+        }
+
+        // PKT_AMBIENT_SYNC (0x15): [0x15, vehCount, pedCount, flags, ...entries]
+        if (pktType === PKT_AMBIENT_SYNC && payload.length >= 4) {
+          const mod = window.re3Module;
+          if (!this.isHost && mod && Engine.isPlaying() && this.ensureScratchPtrs(mod)) {
+            if (payload.length <= this.ambMaxBytes && typeof mod._mp_apply_ambient_state === "function") {
+              mod.HEAPU8.set(payload, this.ambScratchPtr);
+              mod._mp_apply_ambient_state(this.ambScratchPtr, payload.length);
+            }
+          }
+          return;
+        }
+
+        // PKT_AMBIENT_HIT (0x16): [0x16, count, ...(u16 netId, u16 damage)]
+        if (pktType === PKT_AMBIENT_HIT && payload.length >= 6) {
+          const mod = window.re3Module;
+          if (this.isHost && mod && Engine.isPlaying() && typeof mod._mp_apply_ambient_hit === "function") {
+            const dv = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+            const count = payload[1];
+            for (let i = 0; i < count && (2 + (i + 1) * 4) <= payload.length; i++) {
+              const netId = dv.getUint16(2 + i * 4, true);
+              const dmg = dv.getUint16(4 + i * 4, true);
+              mod._mp_apply_ambient_hit(netId, dmg);
+            }
+          }
+          return;
+        }
+
+        // PKT_PEER_NAME (0x17): [0x17, peerId, ...utf8Name]
+        if (pktType === PKT_PEER_NAME && payload.length > 2) {
+          const peerId = payload[1];
+          const newName = new TextDecoder().decode(payload.subarray(2)).trim();
+          const peer = this.peers.get(peerId);
+          if (peer && newName) {
+            peer.name = newName;
+            this.updateRosterUI();
+          }
+          return;
+        }
+      },
+
+      startSyncLoop() {
+        if (this.syncInterval) clearInterval(this.syncInterval);
+        let cachedName = null;
+        let cachedPeerId = -1;
+        let frameBuf = null;
+        let floatByteOffset = 0;
+        let ambTick = 0;
+
+        // 25 Hz = 40 ms
+        this.syncInterval = setInterval(() => {
+          const mod = window.re3Module;
+          if (!mod || !this.myPeerId || !Engine.isPlaying()) return;
+          if (this.pendingWorldSync) {
+            const w = this.pendingWorldSync;
+            this.pendingWorldSync = null;
+            Engine.setWeatherTime(w.weatherId, w.hour, w.minute);
+          }
+
+          const desiredMode = this.myPeerId > 0 ? (this.isHost ? 1 : 2) : 0;
+          if (this.lastAppliedNetMode !== desiredMode && typeof mod._mp_set_net_mode === "function") {
+            mod._mp_set_local_peer_id?.(this.myPeerId);
+            mod._mp_set_net_mode(desiredMode);
+            this.lastAppliedNetMode = desiredMode;
+          }
+
+          try {
+            if (typeof mod._mp_get_local_state === "function" && this.ensureScratchPtrs(mod)) {
+              if (!frameBuf || cachedName !== this.playerName || cachedPeerId !== this.myPeerId) {
+                cachedName = this.playerName;
+                cachedPeerId = this.myPeerId;
+                const nameBytes = this.encodePlayerName(cachedName);
+                const pktLen = 4 + 1 + 1 + 1 + nameBytes.length + (28 * 4);
+                frameBuf = new Uint8Array(pktLen);
+                // Header: FRAME_DATA (0x01), peer 0, channel 2 (P2P fast broadcast)
+                frameBuf[0] = FRAME_DATA;
+                frameBuf[1] = 0;
+                frameBuf[2] = 0;
+                frameBuf[3] = 2;
+                frameBuf[4] = PKT_PLAYER_STATE;
+                frameBuf[5] = this.myPeerId;
+                frameBuf[6] = nameBytes.length;
+                frameBuf.set(nameBytes, 7);
+                floatByteOffset = 7 + nameBytes.length;
+              }
+
+              mod._mp_get_local_state(this.stateScratchPtr);
+              // Copy raw 112 bytes via Uint8Array so any playerName byte length is alignment-safe
+              const stateBytes = new Uint8Array(mod.HEAPF32.buffer, this.stateScratchPtr, 28 * 4);
+              frameBuf.set(stateBytes, floatByteOffset);
+
+              this.sendToPeersOrRelay(frameBuf.subarray(4), frameBuf, 2);
+
+              // Ambient traffic & ped sync: Host exports every ~120ms (~8.3 Hz) to peers
+              if (this.isHost && (++ambTick % 3) === 0 && this.peers.size > 0 && typeof mod._mp_export_ambient_state === "function") {
+                const ambLen = mod._mp_export_ambient_state(this.ambScratchPtr, this.ambMaxBytes);
+                if (ambLen > 0) {
+                  const ambPayload = new Uint8Array(mod.HEAPU8.buffer, this.ambScratchPtr, ambLen).slice();
+                  this.sendToPeersOrRelay(ambPayload, null, 2);
+                }
+              }
+
+              // Clients forward any local hits inflicted onto synced ambient NPCs to Host
+              if (!this.isHost && typeof mod._mp_pop_ambient_hits === "function") {
+                const hitCount = mod._mp_pop_ambient_hits(this.ambScratchPtr, 128);
+                if (hitCount > 0) {
+                  const hitPkt = new Uint8Array(2 + hitCount * 4);
+                  hitPkt[0] = PKT_AMBIENT_HIT;
+                  hitPkt[1] = hitCount & 0xff;
+                  hitPkt.set(new Uint8Array(mod.HEAPU8.buffer, this.ambScratchPtr, hitCount * 4), 2);
+                  const hostPeer = this.peers.get(1);
+                  if (hostPeer?.dc && hostPeer.dc.readyState === "open") {
+                    try { hostPeer.dc.send(hitPkt); } catch (_) {}
+                  } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    const frame = new Uint8Array(4 + hitPkt.length);
+                    frame[0] = FRAME_DATA;
+                    frame[1] = 0;
+                    frame[2] = 1; // Unicast directly to Host (Peer 1)
+                    frame[3] = 1;
+                    frame.set(hitPkt, 4);
+                    this.sendFrame(frame);
+                  }
+                }
+              }
+            }
+          } catch (_) {}
+        }, 40);
+      },
+
+      broadcastWorldSync(weatherId, hour, minute) {
+        const frame = new Uint8Array([
+          FRAME_DATA, 0, 0, 2,
+          PKT_WORLD_SYNC, weatherId & 0xff, hour & 0xff, minute & 0xff
+        ]);
+        this.sendFrame(frame);
+      },
+
+      broadcastVehicleSpawn(modelId, col1, col2) {
+        const c1 = col1 < 0 ? 255 : (col1 & 0xff);
+        const c2 = col2 < 0 ? 255 : (col2 & 0xff);
+        const frame = new Uint8Array([
+          FRAME_DATA, 0, 0, 2,
+          PKT_VEHICLE_SPAWN,
+          (modelId >> 8) & 0xff, modelId & 0xff,
+          c1, c2
+        ]);
+        this.sendFrame(frame);
+      },
+
+      sendChat(message) {
+        const text = String(message || "").trim();
+        if (!text) return;
+        const nameBytes = this.encodePlayerName(this.playerName);
+        const textBytes = new TextEncoder().encode(text.slice(0, 120));
+        const frame = new Uint8Array(4 + 3 + nameBytes.length + textBytes.length);
+        frame[0] = FRAME_DATA;
+        frame[1] = 0;
+        frame[2] = 0;
+        frame[3] = 2; // Broadcast to all room peers
+        frame[4] = PKT_CHAT;
+        frame[5] = this.myPeerId;
+        frame[6] = nameBytes.length;
+        frame.set(nameBytes, 7);
+        frame.set(textBytes, 7 + nameBytes.length);
+        this.sendFrame(frame);
+        this.displayChat(this.playerName, text);
+      },
+
+      displayChat(sender, text) {
+        const container = document.getElementById("chat-messages");
+        const msg = document.createElement("div");
+        msg.className = "chat-msg";
+        msg.innerHTML = `<span class="sender">${escapeHtml(sender)}:</span><span>${escapeHtml(text)}</span>`;
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+        setTimeout(() => {
+          msg.style.opacity = "0";
+          msg.style.transition = "opacity 0.4s";
+          setTimeout(() => msg.remove(), 450);
+        }, 12000);
+      },
+
+      kickPeer(peerId) {
+        if (!this.isHost) return;
+        const frame = new Uint8Array([FRAME_KICK_PEER, (peerId >> 8) & 0xff, peerId & 0xff, 0]);
+        this.sendFrame(frame);
+      },
+
+      updateRosterUI() {
+        const table = document.getElementById("roster-peers-table");
+        const teleportList = document.getElementById("remote-players-teleport-list");
+
+        let html = `<div style="padding: 6px; background: rgba(30,41,59,0.5); border-radius: 4px; margin-bottom: 6px;">
+          <strong>You:</strong> ${escapeHtml(this.playerName)} (Peer #${this.myPeerId || 1}${this.isHost ? " - Host" : ""})
+        </div>`;
+
+        let tpButtons = "";
+
+        if (this.peers.size === 0) {
+          html += `<div style="color: var(--text-muted); padding: 8px;">No remote players connected yet. Share invite link!</div>`;
+          tpButtons = `<span style="font-size: 12px; color: var(--text-muted);">No other players in room yet.</span>`;
+        } else {
+          for (const [id, peer] of this.peers.entries()) {
+            const isP2P = Boolean(peer.dc && peer.dc.readyState === "open");
+            const transportBadge = isP2P
+              ? `<span style="font-size: 10px; color: var(--accent-green); font-weight: 700;">[⚡ WebRTC P2P]</span>`
+              : `<span style="font-size: 10px; color: var(--accent-blue); font-weight: 700;">[Relay]</span>`;
+
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border-subtle);">
+              <span><strong>Peer #${id}:</strong> ${escapeHtml(peer.name)} ${transportBadge}</span>
+              <div style="display: flex; gap: 6px;">
+                <button class="action-btn" style="padding: 3px 8px; font-size: 11px;" onclick="Engine.teleportToPeer(${id})">📍 Teleport</button>
+                ${this.isHost ? `<button class="action-btn" style="padding: 3px 8px; font-size: 11px; background: rgba(239,68,68,0.2);" onclick="Network.kickPeer(${id})">Kick</button>` : ""}
+              </div>
+            </div>`;
+
+            tpButtons += `<button class="action-btn" style="padding: 5px 10px; font-size: 12px;" onclick="Engine.teleportToPeer(${id})">📍 Teleport to ${escapeHtml(peer.name)}</button>`;
+          }
+        }
+
+        table.innerHTML = html;
+        teleportList.innerHTML = tpButtons;
+      }
+    };
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m]);
+    }
+
+    /* =========================================================================
+     * 7. CATALOG DATA (EXACT DEFAULT.IDE 61 VEHICLES & PED SKINS)
+     * ========================================================================= */
+    const VEHICLES = [
+      { id: 90, name: "Landstalker (SUV)", cat: "sedans" },
+      { id: 91, name: "Idaho", cat: "sedans" },
+      { id: 92, name: "Stinger", cat: "sports", highlight: true },
+      { id: 93, name: "Linerunner", cat: "heavy" },
+      { id: 94, name: "Perennial", cat: "sedans" },
+      { id: 95, name: "Sentinel", cat: "sedans" },
+      { id: 96, name: "Patriot (Humvee)", cat: "emergency", highlight: true },
+      { id: 97, name: "Fire Truck", cat: "emergency" },
+      { id: 98, name: "Trashmaster", cat: "heavy" },
+      { id: 99, name: "Stretch Limo", cat: "sedans" },
+      { id: 100, name: "Manana", cat: "sedans" },
+      { id: 101, name: "Infernus", cat: "sports", highlight: true },
+      { id: 102, name: "Blista", cat: "sedans" },
+      { id: 103, name: "Pony", cat: "heavy" },
+      { id: 104, name: "Mule", cat: "heavy" },
+      { id: 105, name: "Cheetah", cat: "sports", highlight: true },
+      { id: 106, name: "Ambulance", cat: "emergency" },
+      { id: 107, name: "FBI Car", cat: "emergency", highlight: true },
+      { id: 108, name: "Moonbeam", cat: "sedans" },
+      { id: 109, name: "Esperanto", cat: "sedans" },
+      { id: 110, name: "Taxi", cat: "sedans" },
+      { id: 111, name: "Kuruma", cat: "sedans" },
+      { id: 112, name: "Bobcat (Pickup)", cat: "sedans" },
+      { id: 113, name: "Mr. Whoopee (Ice Cream)", cat: "specials", highlight: true },
+      { id: 114, name: "BF Injection (Buggy)", cat: "specials", highlight: true },
+      { id: 115, name: "Corpse Manana", cat: "specials" },
+      { id: 116, name: "Police Cruiser", cat: "emergency", highlight: true },
+      { id: 117, name: "Enforcer (SWAT Van)", cat: "emergency" },
+      { id: 118, name: "Securicar", cat: "heavy" },
+      { id: 119, name: "Banshee", cat: "sports", highlight: true },
+      { id: 120, name: "Predator (Police Boat)", cat: "specials" },
+      { id: 121, name: "Bus", cat: "heavy" },
+      { id: 122, name: "Rhino (Tank)", cat: "emergency", highlight: true },
+      { id: 123, name: "Barracks OL (Army)", cat: "emergency" },
+      { id: 124, name: "Subway Train", cat: "specials" },
+      { id: 125, name: "Police Chopper", cat: "specials" },
+      { id: 126, name: "Dodo (Plane)", cat: "specials", highlight: true },
+      { id: 127, name: "Coach (Tour Bus)", cat: "heavy" },
+      { id: 128, name: "Cabbie", cat: "sedans" },
+      { id: 129, name: "Stallion", cat: "sedans" },
+      { id: 130, name: "Rumpo", cat: "heavy" },
+      { id: 131, name: "RC Bandit", cat: "specials", highlight: true },
+      { id: 132, name: "Belly Up Triad Van", cat: "gang" },
+      { id: 133, name: "Mr. Wong's Laundrette", cat: "heavy" },
+      { id: 134, name: "Mafia Sentinel", cat: "gang", highlight: true },
+      { id: 135, name: "Yardie Lobo", cat: "gang" },
+      { id: 136, name: "Yakuza Stinger", cat: "gang", highlight: true },
+      { id: 137, name: "Diablo Stallion", cat: "gang", highlight: true },
+      { id: 138, name: "Cartel Cruiser", cat: "gang" },
+      { id: 139, name: "Hoods Rumpo XL", cat: "gang" },
+      { id: 140, name: "Airtrain (Jumbo Jet)", cat: "specials" },
+      { id: 141, name: "Dead Dodo", cat: "specials" },
+      { id: 142, name: "Speeder (Speedboat)", cat: "specials" },
+      { id: 143, name: "Reefer (Boat)", cat: "specials" },
+      { id: 144, name: "Panlantic Van", cat: "heavy" },
+      { id: 145, name: "Flatbed Truck", cat: "heavy" },
+      { id: 146, name: "Yankee Truck", cat: "heavy" },
+      { id: 147, name: "Escape Chopper", cat: "specials" },
+      { id: 148, name: "Borgnine Taxi", cat: "sedans", highlight: true },
+      { id: 149, name: "Toyz Van", cat: "heavy" },
+      { id: 150, name: "Ghost Boat", cat: "specials" }
+    ];
+
+    const PED_MODELS = [
+      { id: 0, name: "Claude (Player)", cat: "Heroes" },
+      { id: 1, name: "Liberty City Cop", cat: "Emergency" },
+      { id: 2, name: "SWAT Tactical", cat: "Emergency" },
+      { id: 3, name: "FBI Agent", cat: "Emergency" },
+      { id: 4, name: "US Army Soldier", cat: "Emergency" },
+      { id: 5, name: "Paramedic", cat: "Emergency" },
+      { id: 6, name: "Fireman", cat: "Emergency" },
+      { id: 7, name: "Male Civilian #1", cat: "Civilians" },
+      { id: 8, name: "Taxi Driver", cat: "Civilians" },
+      { id: 9, name: "Pimp", cat: "Civilians" },
+      { id: 10, name: "Leone Mafia Goon", cat: "Gangs" },
+      { id: 11, name: "Leone Mafia Capo", cat: "Gangs" },
+      { id: 12, name: "Triad Soldier", cat: "Gangs" },
+      { id: 13, name: "Triad Enforcer", cat: "Gangs" },
+      { id: 14, name: "Diablo Gangster", cat: "Gangs" },
+      { id: 15, name: "Diablo Lieut.", cat: "Gangs" },
+      { id: 16, name: "Yakuza Enforcer", cat: "Gangs" },
+      { id: 17, name: "Yakuza Assassin", cat: "Gangs" },
+      { id: 18, name: "Yardie Posse", cat: "Gangs" },
+      { id: 19, name: "Yardie Rasta", cat: "Gangs" },
+      { id: 20, name: "Colombian Cartel", cat: "Gangs" },
+      { id: 21, name: "Cartel Enforcer", cat: "Gangs" },
+      { id: 22, name: "Southside Hood (Red)", cat: "Gangs" },
+      { id: 23, name: "Purple Nines Hood", cat: "Gangs" },
+      { id: 24, name: "Street Criminal #1", cat: "Gangs" },
+      { id: 25, name: "Thief / Mugger", cat: "Gangs" },
+      // Note: 26..29 special01..04 are mission-specific cutscene peds requiring dynamic TXDs
+      { id: 30, name: "Psycho Guy", cat: "Civilians" },
+      { id: 31, name: "Street Guy", cat: "Civilians" },
+      { id: 32, name: "Tourist Male", cat: "Civilians" },
+      { id: 33, name: "Fat Street Guy", cat: "Civilians" },
+      { id: 34, name: "Street Girl", cat: "Civilians" },
+      { id: 35, name: "Casual Girl", cat: "Civilians" },
+      { id: 36, name: "Suit Businesswoman", cat: "Civilians" },
+      { id: 37, name: "Sensible Female", cat: "Civilians" },
+      { id: 38, name: "Heavy Female", cat: "Civilians" },
+      { id: 39, name: "Prostitute #1", cat: "Civilians" },
+      { id: 40, name: "Prostitute #2", cat: "Civilians" },
+      { id: 41, name: "Portland Guy #1", cat: "Civilians" },
+      { id: 42, name: "Portland Old Guy", cat: "Civilians" },
+      { id: 43, name: "Portland Old Woman", cat: "Civilians" },
+      { id: 44, name: "Portland Geek Girl", cat: "Civilians" },
+      { id: 45, name: "Commercial Geek Guy", cat: "Civilians" },
+      { id: 46, name: "Commercial Tough Guy", cat: "Civilians" },
+      { id: 47, name: "Commercial Old Woman", cat: "Civilians" },
+      { id: 48, name: "Commercial Woman", cat: "Civilians" },
+      { id: 49, name: "Little Italy Guy", cat: "Civilians" },
+      { id: 50, name: "Little Italy Tough Guy", cat: "Civilians" },
+      { id: 51, name: "Little Italy Old Woman", cat: "Civilians" },
+      { id: 52, name: "Little Italy Woman", cat: "Civilians" },
+      { id: 53, name: "Dock Worker #1", cat: "Workers" },
+      { id: 54, name: "Dock Worker #2", cat: "Workers" },
+      { id: 55, name: "Tramp / Homeless Man", cat: "Civilians" },
+      { id: 56, name: "Tramp / Homeless Woman", cat: "Civilians" },
+      { id: 57, name: "Utility Worker #1", cat: "Workers" },
+      { id: 58, name: "Utility Worker #2", cat: "Workers" },
+      { id: 59, name: "Business Guy #1", cat: "Business" },
+      { id: 60, name: "Business Guy #2", cat: "Business" },
+      { id: 61, name: "Business Guy #3", cat: "Business" },
+      { id: 62, name: "Business Woman #1", cat: "Business" },
+      { id: 63, name: "Business Woman #2", cat: "Business" },
+      { id: 64, name: "Business Woman #3", cat: "Business" },
+      { id: 65, name: "Modern Guy", cat: "Civilians" },
+      { id: 66, name: "Modern Woman", cat: "Civilians" },
+      { id: 67, name: "Steward / Flight Attendant", cat: "Workers" },
+      { id: 68, name: "Stewardess", cat: "Workers" },
+      { id: 69, name: "Sports Fan #1", cat: "Civilians" },
+      { id: 70, name: "Sports Fan #2", cat: "Civilians" },
+      { id: 71, name: "Sports Fan Woman", cat: "Civilians" },
+      { id: 72, name: "Hospital Doctor", cat: "Workers" },
+      { id: 73, name: "Hospital Nurse", cat: "Workers" },
+      { id: 74, name: "Construction Worker #1", cat: "Workers" },
+      { id: 75, name: "Construction Worker #2", cat: "Workers" },
+      { id: 76, name: "Shopper Female #1", cat: "Civilians" },
+      { id: 77, name: "Shopper Female #2", cat: "Civilians" },
+      { id: 78, name: "Shopper Female #3", cat: "Civilians" },
+      { id: 79, name: "College Student Guy", cat: "Civilians" },
+      { id: 80, name: "College Student Girl", cat: "Civilians" },
+      { id: 81, name: "Casino Gambler", cat: "Civilians" },
+      { id: 82, name: "Casino Lady", cat: "Civilians" }
+    ];
+
+    const WEAPONS = [
+      { id: 1, name: "Baseball Bat", icon: "🏏" },
+      { id: 2, name: "Colt .45 Pistol", icon: "🔫" },
+      { id: 3, name: "Micro Uzi", icon: "💥" },
+      { id: 4, name: "Shotgun", icon: "🎯" },
+      { id: 5, name: "AK-47 Assault Rifle", icon: "⚔️" },
+      { id: 6, name: "M16 Assault Rifle", icon: "🎖️" },
+      { id: 7, name: "Sniper Rifle", icon: "🔭" },
+      { id: 8, name: "Rocket Launcher (RPG)", icon: "🚀" },
+      { id: 9, name: "Flame Thrower", icon: "🔥" },
+      { id: 10, name: "Molotov Cocktails", icon: "🍾" },
+      { id: 11, name: "Hand Grenades", icon: "💣" },
+      { id: 12, name: "Remote Detonator", icon: "📡" }
+    ];
+
+    const TELEPORTS = [
+      // Portland
+      { name: "Claude's Red Light Safehouse", island: "Portland", x: 883.6, y: -308.6, z: 8.8 },
+      { name: "Joey's Garage (Trenton)", island: "Portland", x: 1191.9, y: -690.6, z: 14.8 },
+      { name: "Luigi's Sex Club 7", island: "Portland", x: 904.3, y: -425.8, z: 14.8 },
+      { name: "Salvatore Leone's Mansion", island: "Portland", x: 1443.2, y: -186.7, z: 55.8 },
+      { name: "8-Ball's Bomb Shop", island: "Portland", x: 1285.5, y: -114.7, z: 14.8 },
+      { name: "Portland Import/Export Docks", island: "Portland", x: 1523.5, y: -735.6, z: 14.8 },
+      // Staunton Island
+      { name: "Belleville Park Safehouse", island: "Staunton", x: 374.3, y: -567.8, z: 26.2 },
+      { name: "Love Media Tower (Donald Love)", island: "Staunton", x: 86.5, y: -943.2, z: 26.2 },
+      { name: "Asuka's Waterfront Condo", island: "Staunton", x: 525.6, y: -637.2, z: 16.5 },
+      { name: "Kenji's Casino", island: "Staunton", x: 448.2, y: -1377.5, z: 26.2 },
+      { name: "Callahan Bridge (Staunton side)", island: "Staunton", x: 646.5, y: -934.2, z: 38.5 },
+      { name: "Staunton Police HQ / Armory", island: "Staunton", x: 348.6, y: -1112.5, z: 26.2 },
+      // Shoreside Vale
+      { name: "Cedar Grove Safehouse", island: "Shoreside", x: -792.8, y: 144.5, z: 60.5 },
+      { name: "Francis International Airport", island: "Shoreside", x: -1022.4, y: -925.3, z: 14.8 },
+      { name: "Cochrane Dam", island: "Shoreside", x: -1152.6, y: 735.8, z: 73.2 },
+      { name: "Wichita Gardens Projects", island: "Shoreside", x: -624.5, y: 62.4, z: 14.8 },
+      { name: "Shoreside Lift Bridge", island: "Shoreside", x: -422.5, y: -282.4, z: 38.5 },
+      { name: "Cartel Villa / Mansion", island: "Shoreside", x: -365.8, y: 385.2, z: 59.8 }
+    ];
+
+    /* =========================================================================
+     * 8. UI CONTROLLERS & EVENT BINDINGS
+     * ========================================================================= */
+    function onVehicleCardClicked(modelId) {
+      const col = Number(document.getElementById("select-veh-color")?.value ?? -1);
+      const warp = document.getElementById("chk-warp-driver")?.checked ?? true;
+      Engine.spawnVehicle(modelId, col, col, warp ? 1 : 0);
+    }
+
+    function initUI() {
+      // 1. Render Ped Skins
+      const skinGrid = document.getElementById("ped-skins-grid");
+      skinGrid.innerHTML = PED_MODELS.map((p) => `
+        <div class="item-card ${p.id === 0 ? "highlight" : ""}" onclick="Engine.setPlayerModel(${p.id})">
+          <div class="card-title">${escapeHtml(p.name)}</div>
+          <div class="card-sub">Model #${p.id}</div>
+          <div class="card-badge">${p.cat}</div>
+        </div>
+      `).join("");
+
+      // 2. Render Vehicles
+      renderVehicles("all", "");
+      document.getElementById("select-veh-category").addEventListener("change", (e) => {
+        renderVehicles(e.target.value, document.getElementById("input-veh-search").value);
+      });
+      document.getElementById("input-veh-search").addEventListener("input", (e) => {
+        renderVehicles(document.getElementById("select-veh-category").value, e.target.value);
+      });
+
+      // 3. Render Weapons
+      const weaponsGrid = document.getElementById("weapons-grid");
+      weaponsGrid.innerHTML = WEAPONS.map((w) => `
+        <div class="item-card">
+          <div class="card-title">${w.icon} ${escapeHtml(w.name)}</div>
+          <div class="card-sub">Weapon Type #${w.id}</div>
+          <div class="btn-row" style="margin-top: 8px;">
+            <button class="action-btn" style="padding: 4px 8px; font-size: 11px;" onclick="Engine.giveWeapon(${w.id}, 250)">+250</button>
+            <button class="action-btn" style="padding: 4px 8px; font-size: 11px;" onclick="Engine.giveWeapon(${w.id}, 9999)">Max (9999)</button>
+          </div>
+        </div>
+      `).join("");
+
+      // 4. Render Teleports
+      const tpGrid = document.getElementById("teleport-grid");
+      tpGrid.innerHTML = TELEPORTS.map((t) => `
+        <div class="item-card" onclick="Engine.teleport(${t.x}, ${t.y}, ${t.z})">
+          <div class="card-title">📍 ${escapeHtml(t.name)}</div>
+          <div class="card-sub">${t.island} &bull; (${t.x.toFixed(0)}, ${t.y.toFixed(0)}, ${t.z.toFixed(0)})</div>
+          <div class="card-badge">${t.island}</div>
+        </div>
+      `).join("");
+
+      // 5. Button Actions
+      document.getElementById("btn-heal-player").addEventListener("click", () => Engine.setHealthArmor(100, 100));
+      document.getElementById("btn-give-all-weapons").addEventListener("click", () => Engine.giveAllWeapons());
+      document.getElementById("btn-unlock-all-sandbox").addEventListener("click", () => Engine.unlockAllSandbox());
+      document.getElementById("btn-quick-unlock").addEventListener("click", () => Engine.unlockAllSandbox());
+      document.getElementById("btn-lock-never-wanted").addEventListener("click", () => Engine.setWantedLevel(0, 1));
+
+      // Money buttons
+      document.querySelectorAll("[data-money]").forEach((btn) => {
+        btn.addEventListener("click", () => Engine.addMoney(Number(btn.dataset.money)));
+      });
+
+      // Wanted buttons
+      document.querySelectorAll("[data-wanted]").forEach((btn) => {
+        btn.addEventListener("click", () => Engine.setWantedLevel(Number(btn.dataset.wanted), 0));
+      });
+
+      // Cheats switches
+      document.querySelectorAll("[data-cheat]").forEach((chk) => {
+        chk.addEventListener("change", (e) => Engine.setCheatToggle(Number(e.target.dataset.cheat), e.target.checked));
+      });
+
+      // Weather buttons
+      document.querySelectorAll("[data-weather]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const w = Number(btn.dataset.weather);
+          Engine.setWeatherTime(w, 12, 0);
+          Network.broadcastWorldSync(w, 12, 0);
+          showToast(`Weather set to ${btn.textContent}`, "info");
+        });
+      });
+
+      // Time buttons
+      document.querySelectorAll("[data-time]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const h = Number(btn.dataset.time);
+          Engine.setWeatherTime(0, h, 0);
+          Network.broadcastWorldSync(0, h, 0);
+          showToast(`Time set to ${btn.textContent}`, "info");
+        });
+      });
+
+      // Player name live change across Sandbox, Host, and Room Browser modals
+      ["input-player-name", "input-host-player-name", "input-join-player-name"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("input", (e) => Network.setPlayerName(e.target.value, false));
+        el.addEventListener("change", (e) => Network.setPlayerName(e.target.value || "Claude Speed", true));
+      });
+
+      // Modal navigation tabs
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+          btn.classList.add("active");
+          const target = document.getElementById(btn.dataset.tab);
+          if (target) target.classList.add("active");
+        });
+      });
+
+      // Modal Toggles
+      const modalSandbox = document.getElementById("modal-sandbox");
+      const modalHost = document.getElementById("modal-host");
+      const modalRooms = document.getElementById("modal-rooms");
+
+      function openModal(m) {
+        window._re3SuppressUnlockPauseUntil = performance.now() + 250;
+        if (document.exitPointerLock) document.exitPointerLock();
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+        ["input-player-name", "input-host-player-name", "input-join-player-name"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el && el.value !== Network.playerName) el.value = Network.playerName;
+        });
+        m.classList.add("open");
+      }
+      function closeModal(m) {
+        m.classList.remove("open");
+        window.re3Module?._re3_SetPointerLockActive?.(0);
+        window.re3Module?._re3_OnBrowserFocusLost?.();
+      }
+
+      document.getElementById("btn-open-sandbox").addEventListener("click", () => openModal(modalSandbox));
+      document.getElementById("btn-close-sandbox").addEventListener("click", () => closeModal(modalSandbox));
+
+      document.getElementById("btn-open-host").addEventListener("click", () => openModal(modalHost));
+      document.getElementById("btn-close-host").addEventListener("click", () => closeModal(modalHost));
+      document.getElementById("btn-cancel-host").addEventListener("click", () => closeModal(modalHost));
+
+      document.getElementById("btn-confirm-host").addEventListener("click", () => {
+        const port = Number(document.getElementById("input-host-port").value) || 7777;
+        const name = document.getElementById("input-host-name").value.trim() || "Liberty City Mayhem";
+        const mode = document.getElementById("select-host-mode").value;
+        const customPlayerName = document.getElementById("input-host-player-name")?.value;
+        Network.setPlayerName(customPlayerName || Network.playerName, true);
+        closeModal(modalHost);
+        Network.connect(port, "host", Network.playerName, name, mode);
+      });
+
+      document.getElementById("btn-open-rooms").addEventListener("click", () => {
+        openModal(modalRooms);
+        fetchRooms();
+      });
+      document.getElementById("btn-close-rooms").addEventListener("click", () => closeModal(modalRooms));
+      document.getElementById("btn-refresh-rooms").addEventListener("click", fetchRooms);
+
+      document.getElementById("btn-copy-invite").addEventListener("click", () => {
+        const base = location.protocol === "file:"
+          ? (window.GTA3_DEFAULT_RELAY || DEFAULT_WORKER_URL)
+          : `${location.origin}${location.pathname}`;
+        const url = `${base.replace(/\/+$/, "")}${base.endsWith(".html") ? "" : "/"}?room=${Network.roomPort}`;
+        navigator.clipboard.writeText(url).then(() => {
+          showToast(`📋 Invite Link copied: ${url}`, "success");
+        }).catch(() => {
+          showToast(`Room Link: ${url}`, "info");
+        });
+      });
+
+      document.getElementById("btn-leave-room").addEventListener("click", () => {
+        Network.disconnect();
+        showToast("Left multiplayer room", "info");
+      });
+
+      // Fullscreen and Top Bar hide
+      document.getElementById("btn-toggle-fullscreen").addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      const topBar = document.getElementById("top-bar");
+      document.getElementById("btn-hide-topbar").addEventListener("click", () => {
+        topBar.classList.add("hidden");
+        updateCanvasSize();
+      });
+      document.getElementById("top-bar-reveal").addEventListener("click", () => {
+        topBar.classList.remove("hidden");
+        updateCanvasSize();
+      });
+
+      // Modal chat send button (hotkeys F2/F3/Escape/T/Enter are handled in capture phase inside initInputAndPointerLock)
+      document.getElementById("btn-send-modal-chat").addEventListener("click", () => {
+        const input = document.getElementById("input-modal-chat");
+        Network.sendChat(input.value);
+        input.value = "";
+      });
+    }
+
+    function renderVehicles(category, query) {
+      const grid = document.getElementById("vehicles-grid");
+      const q = String(query || "").toLowerCase();
+      const filtered = VEHICLES.filter((v) => {
+        const matchesCat = (category === "all" || v.cat === category);
+        const matchesQ = (!q || v.name.toLowerCase().includes(q) || String(v.id).includes(q));
+        return matchesCat && matchesQ;
+      });
+
+      grid.innerHTML = filtered.map((v) => `
+        <div class="item-card ${v.highlight ? "highlight" : ""}" onclick="onVehicleCardClicked(${v.id})">
+          <div class="card-title">${escapeHtml(v.name)}</div>
+          <div class="card-sub">Model ID #${v.id}</div>
+          <div class="card-badge">${v.cat.toUpperCase()}</div>
+        </div>
+      `).join("");
+    }
+
+    async function fetchRooms() {
+      const container = document.getElementById("rooms-list-container");
+      const label = document.getElementById("rooms-count-label");
+      label.textContent = "Loading active rooms...";
+
+      try {
+        const res = await fetch(`${getRelayHttpBase()}/api/rooms`, { cache: "no-store" });
+        const data = await res.json();
+        const rooms = data.rooms || [];
+        label.textContent = `${rooms.length} Active Room${rooms.length === 1 ? "" : "s"}`;
+
+        if (rooms.length === 0) {
+          container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 24px;">
+            No active multiplayer rooms online.<br>Click <strong>Host Room</strong> above to start one!
+          </div>`;
+          return;
+        }
+
+        container.innerHTML = rooms.map((r) => `
+          <div class="switch-row" style="cursor: default;">
+            <div>
+              <div style="font-weight: 700; color: #fff;">${escapeHtml(r.name)} <span style="font-size: 11px; color: var(--gold-light);">#${r.port}</span></div>
+              <div style="font-size: 11px; color: var(--text-muted);">Host: ${escapeHtml(r.hostName)} &bull; Mode: ${escapeHtml(r.mode || "Freeroam")}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 12px; font-weight: 700; color: ${r.playerCount >= r.maxPlayers ? "var(--accent-red)" : "var(--accent-green)"};">
+                ${r.playerCount}/${r.maxPlayers}
+              </span>
+              <button class="action-btn gold-btn" style="padding: 5px 12px; font-size: 12px;" onclick="joinRoomByPort(${Number(r.port)})">
+                Join
+              </button>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        label.textContent = "Error loading rooms";
+        container.innerHTML = `<div style="color: var(--accent-red); padding: 12px;">Failed to fetch rooms: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function joinRoomByPort(port) {
+      const customPlayerName = document.getElementById("input-join-player-name")?.value;
+      Network.setPlayerName(customPlayerName || Network.playerName, true);
+      document.getElementById("modal-rooms").classList.remove("open");
+      Network.connect(port, "auto", Network.playerName);
+    }
+
+    /* =========================================================================
+     * 9. ENGINE BOOTSTRAP & MAIN ENTRY POINT
+     * ========================================================================= */
+    window.addEventListener("DOMContentLoaded", async () => {
+      initInputAndPointerLock();
+      initUI();
+      Network.init();
+
+      const progressFill = document.getElementById("progress-bar-fill");
+      const progressText = document.getElementById("progress-status-text");
+      const progressPercent = document.getElementById("progress-percent");
+      const progressDetail = document.getElementById("progress-detail");
+      const btnStart = document.getElementById("btn-start-game");
+
+      function updateProgress(status, pct, detail) {
+        progressText.textContent = status;
+        progressPercent.textContent = pct + "%";
+        progressFill.style.width = pct + "%";
+        if (detail) progressDetail.textContent = detail;
+      }
+
+      try {
+        if (typeof createRe3Module !== "function") {
+          throw new Error("createRe3Module is not defined. Ensure engine/re3_wasm.js is loaded.");
+        }
+
+        updateProgress("Initializing WASM Core...", 2, "Creating re3 Module");
+        updateCanvasSize();
+
+        const instance = await createRe3Module({
+          canvas: document.getElementById("canvas"),
+          arguments: [],
+          print: (t) => console.log("[re3]", t),
+          printErr: (t) => console.warn("[re3]", t),
+          locateFile: (path) => "engine/" + path
+        });
+        window.re3Module = instance;
+
+        // Load all assets into virtual FS
+        await loadGameAssets(instance, updateProgress);
+
+        // Ready to launch
+        btnStart.style.display = "inline-block";
+        btnStart.addEventListener("click", () => {
+          document.getElementById("loading-screen").style.display = "none";
+          try {
+            updateCanvasSize();
+            document.getElementById("canvas")?.focus();
+            instance.FS.chdir("/game");
+            instance.callMain([]);
+            startBackgroundRadioLoader(instance);
+            showToast("🎮 Started! WASD move · Shift sprint · Mouse look/M1 shoot/Wheel weapon · F vehicle · F3 Sandbox", "success");
+
+            // Check if invited via ?room=XXXX
+            const urlParams = new URLSearchParams(location.search);
+            const inviteRoom = Number.parseInt(urlParams.get("room") || "", 10);
+            if (Number.isFinite(inviteRoom) && inviteRoom >= 1024 && inviteRoom <= 65535) {
+              setTimeout(() => {
+                Network.connect(inviteRoom, "auto");
+              }, 1000);
+            }
+          } catch (e) {
+            console.error("callMain error:", e);
+          }
+        });
+
+      } catch (err) {
+        console.error("Boot error:", err);
+        updateProgress("Boot Error", 0, err.message);
+        progressFill.style.background = "#ef4444";
+      }
+    });
+  </script>
+</body>
+</html>
