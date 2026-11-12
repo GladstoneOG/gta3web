@@ -353,12 +353,19 @@ function handleStaticFile(req, res, filePath, stat) {
     "Accept-Ranges": "bytes",
     "Content-Type": contentType,
     "Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=3600",
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Embedder-Policy": "require-corp",
     "Cross-Origin-Resource-Policy": "cross-origin",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Expose-Headers": "Content-Range, Content-Length, Accept-Ranges",
   };
+
+  if (req.method === "HEAD") {
+    res.writeHead(200, {
+      ...baseHeaders,
+      "Content-Length": stat.size,
+    });
+    res.end();
+    return;
+  }
 
   if (range && stat.size > 0) {
     const rangeMatch = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
@@ -410,7 +417,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range");
   res.setHeader("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges");
 
@@ -783,7 +790,7 @@ const keepaliveTimer = setInterval(() => {
 }, 25000);
 if (keepaliveTimer.unref) keepaliveTimer.unref();
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n========================================================`);
   console.log(`  GRAND THEFT AUTO III WEB — 8-PLAYER MULTIPLAYER HUB`);
   console.log(`  Local URL:  http://localhost:${PORT}`);

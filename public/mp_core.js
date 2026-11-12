@@ -99,6 +99,12 @@
     if (Math.abs(state[0]) > 4500 || Math.abs(state[1]) > 4500 || Math.abs(state[2]) > 2000) {
       return false;
     }
+    if (
+      state[16] > 0.5 &&
+      (Math.abs(state[20]) > 4500 || Math.abs(state[21]) > 4500 || Math.abs(state[22]) > 2000)
+    ) {
+      return false;
+    }
     return true;
   }
 
@@ -219,14 +225,20 @@
 
   /**
    * Encodes a PKT_WORLD_SYNC packet:
-   * [0x11, weatherId, hour, minute]
+   * 4-byte legacy/standard: [0x11, weatherId, hour, minute]
+   * 5-byte extended (with wanted level sync): [0x11, weatherId, hour, minute, wantedByte]
+   * where wantedByte = (stars & 0x07) | (neverWanted ? 0x80 : 0) | 0x40 (present flag)
    */
-  function encodeWorldSyncPacket(weatherId, hour, minute) {
-    const pkt = new Uint8Array(4);
+  function encodeWorldSyncPacket(weatherId, hour, minute, wantedStars = null, neverWanted = false) {
+    const hasWanted = Number.isFinite(wantedStars) && wantedStars >= 0 && wantedStars <= 6;
+    const pkt = new Uint8Array(hasWanted ? 5 : 4);
     pkt[0] = PKT_WORLD_SYNC;
     pkt[1] = weatherId & 0xff;
     pkt[2] = hour & 0xff;
     pkt[3] = minute & 0xff;
+    if (hasWanted) {
+      pkt[4] = 0x40 | ((wantedStars | 0) & 0x07) | (neverWanted ? 0x80 : 0);
+    }
     return pkt;
   }
 
@@ -235,10 +247,18 @@
    */
   function decodeWorldSyncPacket(payload) {
     if (!payload || payload.byteLength < 4 || payload[0] !== PKT_WORLD_SYNC) return null;
+    let wantedStars = null;
+    let neverWanted = false;
+    if (payload.byteLength >= 5 && (payload[4] & 0x40) !== 0) {
+      wantedStars = Math.min(6, payload[4] & 0x07);
+      neverWanted = (payload[4] & 0x80) !== 0;
+    }
     return {
       weatherId: payload[1] & 0x03,
       hour: payload[2] % 24,
-      minute: payload[3] % 60
+      minute: payload[3] % 60,
+      wantedStars,
+      neverWanted
     };
   }
 
@@ -431,7 +451,27 @@
         entry.emaIntervalMs = 40;
       }
 
-      // Check for teleport or vehicle entry/exit state transition
+      // Check for teleport or vehicle entry/exit/change state transition
+      // True WASM 28-float layout (from mp_get_local_state / mp_sync_remote_peer):
+      //   [0..2]  = ped.pos (x, y, z)
+      //   [3..5]  = velocity (veh.vel when inVehicle, ped.vel when on foot)
+      //   [6]     = ped.heading
+      //   [7..8]  = ped.health, ped.armor
+      //   [9]     = ped.modelIndex (discrete)
+      //   [10]    = ped.weaponType (discrete)
+      //   [11]    = ped.moveAnimState (discrete)
+      //   [12]    = isShooting (discrete)
+      //   [13..15]= aim (x, y, z)
+      //   [16]    = inVehicle (0 or 1, discrete)
+      //   [17]    = vehNetId (discrete uint16)
+      //   [18]    = vehModelIndex (discrete 90..150)
+      //   [19]    = seatIndex (discrete 0=driver, 1..8=passenger)
+      //   [20..22]= veh.pos (x, y, z)
+      //   [23]    = veh.heading
+      //   [24]    = veh.steerAngle
+      //   [25]    = veh.gasPedal
+      //   [26]    = veh.health
+      //   [27]    = veh.colors (col1 | (col2 << 8), discrete)
       const dx = incoming[0] - currentRendered[0];
       const dy = incoming[1] - currentRendered[1];
       const dz = incoming[2] - currentRendered[2];
@@ -439,13 +479,18 @@
 
       const wasInVeh = currentRendered[16] > 0.5;
       const nowInVeh = incoming[16] > 0.5;
-      const vdx = incoming[17] - currentRendered[17];
-      const vdy = incoming[18] - currentRendered[18];
-      const vdz = incoming[19] - currentRendered[19];
+      const sameVeh =
+        wasInVeh &&
+        nowInVeh &&
+        Math.round(currentRendered[17]) === Math.round(incoming[17]) &&
+        Math.round(currentRendered[18]) === Math.round(incoming[18]);
+      const vdx = incoming[20] - currentRendered[20];
+      const vdy = incoming[21] - currentRendered[21];
+      const vdz = incoming[22] - currentRendered[22];
       const vehDistSq = vdx * vdx + vdy * vdy + vdz * vdz;
 
       const pedTeleported = pedDistSq > this.pedTeleportThresholdSq;
-      const vehTeleported = !wasInVeh || !nowInVeh || vehDistSq > this.vehTeleportThresholdSq;
+      const vehTeleported = !sameVeh || vehDistSq > this.vehTeleportThresholdSq;
 
       entry.prevState.set(currentRendered);
       if (pedTeleported) {
@@ -463,6 +508,13 @@
           entry.prevState[i] = incoming[i];
           entry.displayState[i] = incoming[i];
         }
+      } else {
+        // Always snap discrete vehicle identifiers immediately
+        entry.prevState[16] = incoming[16];
+        entry.prevState[17] = incoming[17];
+        entry.prevState[18] = incoming[18];
+        entry.prevState[19] = incoming[19];
+        entry.prevState[27] = incoming[27];
       }
 
       entry.targetState.set(incoming);
@@ -495,24 +547,24 @@
       const extraTicks = (extraMs / 1000) * this.tickRateHz;
       const extraDamping = Math.exp(-extraMs / 90);
 
-      // Copy discrete fields directly from latest target state
+      // Copy discrete fields directly from latest target state (including [9..12], [16..19], [27])
       out.set(target);
 
-      // --- 1. Pedestrian Position, Velocity & Heading ---
-      const pvx = prev[3] + (target[3] - prev[3]) * alpha;
-      const pvy = prev[4] + (target[4] - prev[4]) * alpha;
-      const pvz = Math.abs(target[5]) < 0.03 ? 0 : prev[5] + (target[5] - prev[5]) * alpha;
+      // --- 1. Velocity (state[3..5] holds vehicle velocity when inVehicle, or ped velocity on foot) ---
+      const vx = prev[3] + (target[3] - prev[3]) * alpha;
+      const vy = prev[4] + (target[4] - prev[4]) * alpha;
+      const vz = Math.abs(target[5]) < 0.03 ? 0 : prev[5] + (target[5] - prev[5]) * alpha;
 
-      const projTargetX = target[0] + target[3] * extraTicks * extraDamping;
-      const projTargetY = target[1] + target[4] * extraTicks * extraDamping;
-      const projTargetZ = target[2] + (Math.abs(target[5]) < 0.03 ? 0 : target[5] * extraTicks * extraDamping);
+      const projX = target[0] + target[3] * extraTicks * extraDamping;
+      const projY = target[1] + target[4] * extraTicks * extraDamping;
+      const projZ = target[2] + (Math.abs(target[5]) < 0.03 ? 0 : target[5] * extraTicks * extraDamping);
 
-      out[0] = prev[0] + (projTargetX - prev[0]) * smoothAlpha;
-      out[1] = prev[1] + (projTargetY - prev[1]) * smoothAlpha;
-      out[2] = prev[2] + (projTargetZ - prev[2]) * smoothAlpha;
-      out[3] = pvx * extraDamping;
-      out[4] = pvy * extraDamping;
-      out[5] = pvz * extraDamping;
+      out[0] = prev[0] + (projX - prev[0]) * smoothAlpha;
+      out[1] = prev[1] + (projY - prev[1]) * smoothAlpha;
+      out[2] = prev[2] + (projZ - prev[2]) * smoothAlpha;
+      out[3] = vx * extraDamping;
+      out[4] = vy * extraDamping;
+      out[5] = vz * extraDamping;
       out[6] = lerpAngleRad(prev[6], target[6], smoothAlpha);
 
       // Smooth aim target when shooting
@@ -522,34 +574,31 @@
         out[15] = prev[15] + (target[15] - prev[15]) * smoothAlpha;
       }
 
-      // --- 2. Vehicle Position, Velocity, Heading & Pedals ---
+      // --- 2. Vehicle Position (state[20..22]), Heading (state[23]), Controls (state[24..25]) & Health (state[26]) ---
       if (target[16] > 0.5) {
-        const vvx = prev[20] + (target[20] - prev[20]) * alpha;
-        const vvy = prev[21] + (target[21] - prev[21]) * alpha;
-        const vvz = Math.abs(target[22]) < 0.025 ? 0 : prev[22] + (target[22] - prev[22]) * alpha;
+        // Preserve discrete vehicle identifiers untouched!
+        out[16] = target[16];
+        out[17] = target[17]; // vehNetId
+        out[18] = target[18]; // vehModelIndex
+        out[19] = target[19]; // seatIndex
+        out[27] = target[27]; // vehColors
 
-        const projVehX = target[17] + target[20] * extraTicks * extraDamping;
-        const projVehY = target[18] + target[21] * extraTicks * extraDamping;
-        const projVehZ = target[19] + (Math.abs(target[22]) < 0.025 ? 0 : target[22] * extraTicks * extraDamping);
+        const projVehX = target[20] + target[3] * extraTicks * extraDamping;
+        const projVehY = target[21] + target[4] * extraTicks * extraDamping;
+        const projVehZ = target[22] + (Math.abs(target[5]) < 0.025 ? 0 : target[5] * extraTicks * extraDamping);
 
-        out[17] = prev[17] + (projVehX - prev[17]) * smoothAlpha;
-        out[18] = prev[18] + (projVehY - prev[18]) * smoothAlpha;
-        out[19] = prev[19] + (projVehZ - prev[19]) * smoothAlpha;
-        out[20] = vvx * extraDamping;
-        out[21] = vvy * extraDamping;
-        out[22] = vvz * extraDamping;
+        out[20] = prev[20] + (projVehX - prev[20]) * smoothAlpha;
+        out[21] = prev[21] + (projVehY - prev[21]) * smoothAlpha;
+        out[22] = prev[22] + (projVehZ - prev[22]) * smoothAlpha;
         out[23] = lerpAngleRad(prev[23], target[23], smoothAlpha);
         out[24] = prev[24] + (target[24] - prev[24]) * smoothAlpha; // steerAngle
         out[25] = prev[25] + (target[25] - prev[25]) * smoothAlpha; // gasPedal
-        out[26] = prev[26] + (target[26] - prev[26]) * smoothAlpha; // brakePedal
+        out[26] = target[26]; // vehHealth
 
-        // Keep driver ped position locked to vehicle position so nametag & ped never lag behind car
-        out[0] = out[17];
-        out[1] = out[18];
-        out[2] = out[19];
-        out[3] = out[20];
-        out[4] = out[21];
-        out[5] = out[22];
+        // Keep driver/passenger ped world position synced with vehicle position so nametag & ped never lag behind car
+        out[0] = out[20];
+        out[1] = out[21];
+        out[2] = out[22];
         out[6] = out[23];
       }
 
@@ -578,15 +627,15 @@
       const lz = localState[2];
       const localInVeh = localState[16] > 0.5;
 
-      // 1. Check high-speed vehicle ramming against on-foot remote peers
-      if (localInVeh && Math.round(localState[16]) === 1) {
-        const vx = localState[20];
-        const vy = localState[21];
+      // 1. Check high-speed vehicle ramming against on-foot remote peers (driver only: seatIndex === 0)
+      if (localInVeh && Math.round(localState[19]) === 0) {
+        const vx = localState[3];
+        const vy = localState[4];
         const speedPerTick = Math.hypot(vx, vy);
         if (speedPerTick > 0.18) {
-          const vhx = localState[17];
-          const vhy = localState[18];
-          const vhz = localState[19];
+          const vhx = localState[20];
+          const vhy = localState[21];
+          const vhz = localState[22];
           for (const [peerId, rState] of remoteStates.entries()) {
             if (!rState || rState[7] <= 0 || rState[16] > 0.5) continue;
             const lastRam = this.lastRamHitMs.get(peerId) || 0;
@@ -607,11 +656,11 @@
         }
       }
 
-      // 2. Check weapon firing / melee attacks
+      // 2. Check weapon firing / melee attacks (weaponType is at state[10])
       const isShooting = localState[12] > 0.5;
       if (!isShooting || localInVeh) return hits;
 
-      const weaponId = Math.max(0, Math.min(11, Math.round(localState[9])));
+      const weaponId = Math.max(0, Math.min(11, Math.round(localState[10])));
       const spec = WEAPON_DAMAGE_TABLE[weaponId] || WEAPON_DAMAGE_TABLE[0];
 
       let dirX = localState[13] - lx;

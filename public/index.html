@@ -1684,10 +1684,16 @@
           showToast("❤️ Health & Armor Maxed + Vehicle Fixed!", "success");
         });
       },
-      setWantedLevel(stars, neverWanted = 0) {
+      setWantedLevel(stars, neverWanted = 0, fromNetwork = false) {
         this._callPlaying("_mp_set_wanted_level", (fn) => {
           fn(stars, neverWanted ? 1 : 0);
-          showToast(`⭐ Wanted Level set to ${stars}★`, "info");
+          if (!fromNetwork) {
+            showToast(`⭐ Wanted Level set to ${stars}★`, "info");
+            if (Network.myPeerId > 0) {
+              const snap = Network.worldEnv ? Network.worldEnv.snapshot() : { weatherId: 0, hour: 12, minute: 0 };
+              Network.broadcastWorldSync(snap.weatherId, snap.hour, snap.minute, stars, Boolean(neverWanted));
+            }
+          }
         });
       },
       giveWeapon(weaponType, ammo = 250) {
@@ -2354,18 +2360,28 @@
           return;
         }
 
-        // PKT_WORLD_SYNC (0x11): [0x11, weatherId, hour, minute]
+        // PKT_WORLD_SYNC (0x11): [0x11, weatherId, hour, minute, optional wantedByte]
         if (pktType === PKT_WORLD_SYNC && payload.length >= 4) {
-          const weatherId = payload[1] & 0x03;
-          const hour = payload[2] % 24;
-          const minute = payload[3] % 60;
+          const decoded = window.GTA3MpCore
+            ? window.GTA3MpCore.decodeWorldSyncPacket(payload)
+            : {
+                weatherId: payload[1] & 0x03,
+                hour: payload[2] % 24,
+                minute: payload[3] % 60,
+                wantedStars: payload.length >= 5 && (payload[4] & 0x40) !== 0 ? Math.min(6, payload[4] & 0x07) : null,
+                neverWanted: payload.length >= 5 ? (payload[4] & 0x80) !== 0 : false
+              };
+          if (!decoded) return;
           if (this.worldEnv) {
-            this.worldEnv.applyPacket({ weatherId, hour, minute });
+            this.worldEnv.applyPacket(decoded);
           }
           if (Engine.isPlaying()) {
-            Engine.setWeatherTime(weatherId, hour, minute);
+            Engine.setWeatherTime(decoded.weatherId, decoded.hour, decoded.minute);
+            if (decoded.wantedStars !== null) {
+              Engine.setWantedLevel(decoded.wantedStars, decoded.neverWanted ? 1 : 0, true);
+            }
           } else {
-            this.pendingWorldSync = { weatherId, hour, minute };
+            this.pendingWorldSync = decoded;
           }
           return;
         }
@@ -2493,6 +2509,9 @@
             const w = this.pendingWorldSync;
             this.pendingWorldSync = null;
             Engine.setWeatherTime(w.weatherId, w.hour, w.minute);
+            if (w.wantedStars !== null && w.wantedStars !== undefined) {
+              Engine.setWantedLevel(w.wantedStars, w.neverWanted ? 1 : 0, true);
+            }
           }
 
           const desiredMode = this.myPeerId > 0 ? (this.isHost ? 1 : 2) : 0;
@@ -2548,8 +2567,8 @@
                 }
               }
 
-              // Ambient traffic & ped sync: Host exports every ~120ms (~8.3 Hz) to peers
-              if (this.isHost && (++ambTick % 3) === 0 && this.peers.size > 0 && typeof mod._mp_export_ambient_state === "function") {
+              // Ambient traffic, police & ped sync: Host exports every ~80ms (12.5 Hz) to peers
+              if (this.isHost && (++ambTick % 2) === 0 && this.peers.size > 0 && typeof mod._mp_export_ambient_state === "function") {
                 const ambLen = mod._mp_export_ambient_state(this.ambScratchPtr, this.ambMaxBytes);
                 if (ambLen > 0) {
                   const ambPayload = new Uint8Array(mod.HEAPU8.buffer, this.ambScratchPtr, ambLen).slice();
@@ -2584,9 +2603,9 @@
         }, 40);
       },
 
-      broadcastWorldSync(weatherId, hour, minute) {
+      broadcastWorldSync(weatherId, hour, minute, wantedStars = null, neverWanted = false) {
         const pkt = window.GTA3MpCore
-          ? window.GTA3MpCore.encodeWorldSyncPacket(weatherId, hour, minute)
+          ? window.GTA3MpCore.encodeWorldSyncPacket(weatherId, hour, minute, wantedStars, neverWanted)
           : new Uint8Array([PKT_WORLD_SYNC, weatherId & 0xff, hour & 0xff, minute & 0xff]);
         this.sendToPeersOrRelay(pkt, null, 2);
       },

@@ -13,24 +13,24 @@ function makeSampleState(overrides = {}) {
   s[6] = overrides.heading ?? 0.5;
   s[7] = overrides.health ?? 100.0;
   s[8] = overrides.armor ?? 50.0;
-  s[9] = overrides.weapon ?? 2;
-  s[10] = overrides.model ?? 0;
+  s[9] = overrides.model ?? 0;
+  s[10] = overrides.weapon ?? 2;
   s[11] = overrides.anim ?? 1;
   s[12] = overrides.shooting ?? 0;
   s[13] = overrides.aimX ?? 820.0;
   s[14] = overrides.aimY ?? -938.0;
   s[15] = overrides.aimZ ?? 15.5;
   s[16] = overrides.inVeh ?? 0;
-  s[17] = overrides.vehX ?? 0;
-  s[18] = overrides.vehY ?? 0;
-  s[19] = overrides.vehZ ?? 0;
-  s[20] = overrides.vehVx ?? 0;
-  s[21] = overrides.vehVy ?? 0;
-  s[22] = overrides.vehVz ?? 0;
+  s[17] = overrides.vehNetId ?? 0;
+  s[18] = overrides.vehModel ?? 0;
+  s[19] = overrides.seatIndex ?? 0;
+  s[20] = overrides.vehX ?? 0;
+  s[21] = overrides.vehY ?? 0;
+  s[22] = overrides.vehZ ?? 0;
   s[23] = overrides.vehHeading ?? 0;
   s[24] = overrides.steer ?? 0;
   s[25] = overrides.gas ?? 0;
-  s[26] = overrides.brake ?? 0;
+  s[26] = overrides.vehHealth ?? 1000.0;
   s[27] = overrides.colors ?? 0;
   return s;
 }
@@ -153,6 +153,59 @@ test("PeerInterpolator smoothly interpolates 60Hz frames and drops out-of-order 
   assert.equal(interp.ingestPacket(2, sTeleport, 12, 1080, "Player 2"), true);
   const afterTp = interp.sample(2, 1082);
   assert.ok(Math.abs(afterTp[0] - 500.0) < 1.0, `Expected teleport snap near 500.0, got ${afterTp[0]}`);
+
+  // Vehicle boarding & driving: discrete vehNetId (state[17]), vehModel (state[18]), and seatIndex (state[19])
+  // must NEVER be corrupted by dead-reckoning or position interpolation, and vehPos (state[20..22]) must interpolate cleanly!
+  const v1 = makeSampleState({
+    x: 810.0,
+    y: -930.0,
+    z: 15.0,
+    vx: 0.4,
+    vy: 0.0,
+    vz: 0.0,
+    inVeh: 1,
+    vehNetId: 42,
+    vehModel: 110, // Taxi
+    seatIndex: 0,
+    vehX: 810.0,
+    vehY: -930.0,
+    vehZ: 15.0,
+    vehHeading: 0.5,
+    vehHealth: 1000.0,
+    colors: 0x0201
+  });
+  const v2 = makeSampleState({
+    x: 810.8,
+    y: -930.0,
+    z: 15.0,
+    vx: 0.4,
+    vy: 0.0,
+    vz: 0.0,
+    inVeh: 1,
+    vehNetId: 42,
+    vehModel: 110,
+    seatIndex: 0,
+    vehX: 810.8,
+    vehY: -930.0,
+    vehZ: 15.0,
+    vehHeading: 0.55,
+    vehHealth: 1000.0,
+    colors: 0x0201
+  });
+  assert.equal(interp.ingestPacket(2, v1, 13, 1120, "Player 2"), true);
+  assert.equal(interp.ingestPacket(2, v2, 14, 1160, "Player 2"), true);
+
+  for (const sampleTime of [1140, 1210]) {
+    const sv = interp.sample(2, sampleTime);
+    assert.equal(sv[16], 1, "inVehicle flag preserved");
+    assert.equal(sv[17], 42, "vehNetId must stay exact integer 42");
+    assert.equal(sv[18], 110, "vehModelIndex must stay exact integer 110 (Taxi)");
+    assert.equal(sv[19], 0, "seatIndex must stay exact integer 0 (driver)");
+    assert.ok(sv[20] >= 810.0 && sv[20] <= 812.5, `vehX should remain near 810..812, got ${sv[20]}`);
+    assert.ok(Math.abs(sv[21] - -930.0) < 0.01, `vehY should remain -930.0, got ${sv[21]}`);
+    assert.equal(sv[0], sv[20], "ped X locked to vehicle X while driving");
+    assert.equal(sv[1], sv[21], "ped Y locked to vehicle Y while driving");
+  }
 });
 
 test("PvpCombatTracker detects weapon hits and vehicle ramming with cooldowns", () => {
@@ -207,4 +260,13 @@ test("WorldEnvironmentState preserves time when changing weather and preserves w
   assert.equal(env.weatherId, 3);
   assert.equal(env.hour, 6);
   assert.equal(env.minute, 0);
+
+  // Extended PKT_WORLD_SYNC with wanted stars
+  const pktWanted = MpCore.encodeWorldSyncPacket(3, 6, 0, 4, false);
+  assert.equal(pktWanted.byteLength, 5);
+  const decWanted = MpCore.decodeWorldSyncPacket(pktWanted);
+  assert.equal(decWanted.weatherId, 3);
+  assert.equal(decWanted.hour, 6);
+  assert.equal(decWanted.wantedStars, 4);
+  assert.equal(decWanted.neverWanted, false);
 });
