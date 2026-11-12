@@ -412,6 +412,7 @@ export class GTA3RelayHub {
         }
       } else {
         // Sent by Client
+        const targetPeerId = targetOrPeerId;
         const out = new Uint8Array(bytes);
         out[1] = (peer.peerId >> 8) & 0xff;
         out[2] = peer.peerId & 0xff; // stamped sender = client's peerId
@@ -421,6 +422,14 @@ export class GTA3RelayHub {
           for (const [id, p] of room.peers.entries()) {
             if (id !== peer.peerId) this.safeSend(p.ws, out);
           }
+        } else if (
+          (channel === 3 || (bytes.length > 4 && bytes[4] === 0x30)) &&
+          targetPeerId >= 1 &&
+          targetPeerId !== peer.peerId
+        ) {
+          // Direct 1-hop unicast to target peer (WebRTC signaling & targeted relay packets)
+          const dest = room.peers.get(targetPeerId);
+          if (dest) this.safeSend(dest.ws, out);
         } else {
           // Forward to Host (peer 1)
           const host = room.peers.get(1);

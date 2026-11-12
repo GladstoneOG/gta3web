@@ -1,0 +1,5 @@
+{
+  "name": "Grand Theft Auto III Web — 8-Player Multiplayer & Sandbox Trainer",
+  "description": "Browser-native WebAssembly port of Grand Theft Auto III (re3) featuring 8-player real-time WebRTC/WebSocket multiplayer synchronization, host migration, live traffic/pedestrian sync, and an in-game Liberty City sandbox trainer.",
+  "requestFramePermissions": []
+}

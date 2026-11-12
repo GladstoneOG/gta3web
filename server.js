@@ -14,12 +14,14 @@
  */
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const PORT = Number.parseInt(process.env.PORT || "8080", 10);
+const PORT = Number.parseInt(process.env.PORT || "3000", 10);
 const PUBLIC_DIR = path.join(__dirname, "public");
+const CDN_FALLBACK_ORIGIN = (process.env.CDN_ORIGIN || "https://gta3web.johansans999.workers.dev").replace(/\/+$/, "");
 
 const FRAME_DATA = 0x01;
 const FRAME_PEER_CONNECTED = 0x02;
@@ -464,6 +466,38 @@ const server = http.createServer((req, res) => {
 
   fs.stat(filePath, (err, stat) => {
     if (err || !stat.isFile()) {
+      // Transparent CDN proxy fallback for large asset slices & audio tracks not stored locally in git
+      if ((reqPath.startsWith("/chunks/") || reqPath.startsWith("/audio/")) && CDN_FALLBACK_ORIGIN) {
+        const targetUrl = `${CDN_FALLBACK_ORIGIN}${reqPath}`;
+        const proxyHeaders = { "User-Agent": "GTA3Web-LocalRelay/1.0" };
+        if (req.headers.range) proxyHeaders.Range = req.headers.range;
+        const proxyReq = https.get(targetUrl, { headers: proxyHeaders }, (proxyRes) => {
+          if (proxyRes.statusCode !== 200 && proxyRes.statusCode !== 206) {
+            res.writeHead(proxyRes.statusCode || 404, { "Content-Type": "text/plain" });
+            res.end("Not Found");
+            proxyRes.resume();
+            return;
+          }
+          const ext = path.extname(reqPath).toLowerCase();
+          const outHeaders = {
+            "Content-Type": proxyRes.headers["content-type"] || MIME_TYPES[ext] || "application/octet-stream",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=86400",
+          };
+          if (proxyRes.headers["content-length"]) outHeaders["Content-Length"] = proxyRes.headers["content-length"];
+          if (proxyRes.headers["content-range"]) outHeaders["Content-Range"] = proxyRes.headers["content-range"];
+          if (proxyRes.headers["accept-ranges"]) outHeaders["Accept-Ranges"] = proxyRes.headers["accept-ranges"];
+          res.writeHead(proxyRes.statusCode, outHeaders);
+          proxyRes.pipe(res);
+        });
+        proxyReq.on("error", () => {
+          if (!res.headersSent) {
+            res.writeHead(502, { "Content-Type": "text/plain" });
+          }
+          res.end("Upstream CDN unreachable");
+        });
+        return;
+      }
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not Found");
       return;
@@ -622,6 +656,7 @@ server.on("upgrade", (req, socket) => {
         }
       } else {
         // Sent by Client
+        const targetPeerId = targetOrPeerId;
         const out = Buffer.from(bytes);
         out[1] = (peer.peerId >> 8) & 0xff;
         out[2] = peer.peerId & 0xff; // stamped sender = client's peerId
@@ -631,6 +666,14 @@ server.on("upgrade", (req, socket) => {
           for (const [id, p] of r.peers.entries()) {
             if (id !== peer.peerId) p.ws.send(out);
           }
+        } else if (
+          (channel === 3 || (bytes.length > 4 && bytes[4] === 0x30)) &&
+          targetPeerId >= 1 &&
+          targetPeerId !== peer.peerId
+        ) {
+          // Direct 1-hop unicast to target peer (used for WebRTC signaling & targeted relay packets)
+          const dest = r.peers.get(targetPeerId);
+          if (dest) dest.ws.send(out);
         } else {
           // Forward to Host (peer 1)
           const host = r.peers.get(1);
@@ -678,11 +721,11 @@ server.on("upgrade", (req, socket) => {
       p.ws.send(discFrame);
     }
 
-    // 2. If Host disconnected and clients remain: promote oldest client to Host (slot 1)
+    // 2. If Host disconnected and clients remain: promote oldest active client to Host (slot 1)
     if (peer.peerId === 1 && r.peers.size > 0) {
       let nextHost = null;
       for (const [, p] of r.peers.entries()) {
-        if (!nextHost || p.joinedAt < nextHost.joinedAt) {
+        if (p.ws && !p.ws.closed && (!nextHost || p.joinedAt < nextHost.joinedAt)) {
           nextHost = p;
         }
       }
@@ -700,7 +743,12 @@ server.on("upgrade", (req, socket) => {
 
         nextHost.peerId = 1;
         r.peers.set(1, nextHost);
-        peers.set(nextHost.ws, { ...nextHost, port: r.port });
+        peers.set(nextHost.ws, {
+          port: r.port,
+          peerId: 1,
+          name: nextHost.name,
+          joinedAt: nextHost.joinedAt,
+        });
 
         // Tell promoted client it is now Host
         nextHost.ws.send(encodeHostAssignedFrame(r.port, 1));
@@ -721,6 +769,19 @@ server.on("upgrade", (req, socket) => {
     }
   };
 });
+
+// Periodic WebSocket Ping keepalive to prevent idle proxy timeouts and prune dead sockets
+const keepaliveTimer = setInterval(() => {
+  const pingPayload = Buffer.alloc(0);
+  for (const [ws] of peers.entries()) {
+    if (ws.closed || !ws.socket || !ws.socket.writable) {
+      ws._emitClose();
+    } else {
+      ws._sendFrame(0x09, pingPayload);
+    }
+  }
+}, 25000);
+if (keepaliveTimer.unref) keepaliveTimer.unref();
 
 server.listen(PORT, () => {
   console.log(`\n========================================================`);

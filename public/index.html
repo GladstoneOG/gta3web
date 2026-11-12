@@ -3,7 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>GRAND THEFT AUTO III WEB — 8-Player Multiplayer & Sandbox Trainer</title>
+  <title>Grand Theft Auto III Web — 8-Player Multiplayer &amp; Sandbox Trainer</title>
+  <meta name="description" content="Browser-native WebAssembly port of Grand Theft Auto III (re3) featuring 8-player real-time WebRTC/WebSocket multiplayer synchronization, host migration, live traffic/pedestrian sync, and an in-game Liberty City sandbox trainer." />
+  <meta property="og:title" content="Grand Theft Auto III Web — 8-Player Multiplayer &amp; Sandbox Trainer" />
+  <meta property="og:description" content="Browser-native WebAssembly port of Grand Theft Auto III (re3) featuring 8-player real-time WebRTC/WebSocket multiplayer synchronization, host migration, live traffic/pedestrian sync, and an in-game Liberty City sandbox trainer." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚓</text></svg>" />
   <style>
     :root {
@@ -226,7 +229,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 40;
       padding: 24px;
       text-align: center;
     }
@@ -308,12 +311,11 @@
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.72);
-      backdrop-filter: blur(4px);
+      background: rgba(5, 8, 14, 0.85);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 80;
+      z-index: 150;
       padding: 16px;
     }
     .modal-backdrop.open {
@@ -343,6 +345,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
     .modal-title {
       font-size: 16px;
@@ -370,6 +373,7 @@
       border-bottom: 1px solid var(--border-subtle);
       overflow-x: auto;
       scrollbar-width: none;
+      flex-shrink: 0;
     }
     .tab-bar::-webkit-scrollbar { display: none; }
     .tab-btn {
@@ -985,8 +989,9 @@
   <!-- Toast Notification Container -->
   <div id="toast-container"></div>
 
-  <!-- Cloud Relay Configuration & Re3 WASM Engine Script -->
+  <!-- Cloud Relay Configuration, Multiplayer Core & Re3 WASM Engine Script -->
   <script src="relay_config.js"></script>
+  <script src="mp_core.js"></script>
   <script src="engine/re3_wasm.js"></script>
 
   <!-- Client-side Application Logic -->
@@ -1215,16 +1220,14 @@
         }
       });
 
-      // Poll backup for C++ pause menu cursor release
-      function checkMenuPointerLock() {
+      // Lightweight poll backup for C++ pause menu cursor release (avoids 60Hz idle RAF overhead)
+      setInterval(() => {
         if (document.pointerLockElement === canvas && window.re3Module?._re3_IsMenuActive?.()) {
           suppressUnlockPause();
           window.re3Module?._re3_SetPointerLockActive?.(0);
           try { document.exitPointerLock?.(); } catch (_) {}
         }
-        requestAnimationFrame(checkMenuPointerLock);
-      }
-      requestAnimationFrame(checkMenuPointerLock);
+      }, 100);
 
       // Clear held keys & release pointer lock on focus loss / tab switch
       function onFocusLost() {
@@ -1427,14 +1430,25 @@
       return data instanceof Uint8Array ? data : new Uint8Array(data);
     }
 
+    async function fetchAssetWithFallback(relPath) {
+      try {
+        const resp = await fetch(relPath);
+        if (resp.ok) return resp;
+      } catch (_) {}
+      const cdnBase = (window.GTA3_DEFAULT_RELAY || DEFAULT_WORKER_URL || "").replace(/\/+$/, "");
+      if (cdnBase && !location.origin.includes(cdnBase)) {
+        const cleanRel = String(relPath).replace(/^\/+/, "");
+        const fallbackResp = await fetch(`${cdnBase}/${cleanRel}`);
+        if (fallbackResp.ok) return fallbackResp;
+      }
+      throw new Error(`Failed to fetch ${relPath}`);
+    }
+
     async function loadCachedAudioTrack(track) {
       const cacheKey = `audio/${track}`;
       const cached = toUint8Array(await cacheDB.get(cacheKey));
       if (cached) return cached;
-      const resp = await fetch(cacheKey);
-      if (!resp.ok) {
-        throw new Error(`Failed to fetch ${cacheKey} (${resp.status})`);
-      }
+      const resp = await fetchAssetWithFallback(cacheKey);
       const bytes = new Uint8Array(await resp.arrayBuffer());
       await cacheDB.set(cacheKey, bytes);
       return bytes;
@@ -1454,8 +1468,7 @@
         if (!partBuf) {
           const pct = Math.round(basePct + (i / slices.length) * spanPct);
           updateProgress(`Downloading ${label} (${i + 1}/${slices.length})...`, pct, `Slice: ${slice.file}`);
-          const resp = await fetch(`chunks/${slice.file}`);
-          if (!resp.ok) throw new Error(`Failed to fetch ${slice.file} (${resp.status})`);
+          const resp = await fetchAssetWithFallback(`chunks/${slice.file}`);
           partBuf = await decompressGzip(resp);
           await cacheDB.set(sliceKey, partBuf);
         }
@@ -1466,16 +1479,14 @@
 
     async function loadGameAssets(instance, updateProgress) {
       updateProgress("Loading asset manifest...", 5, "Fetching chunks/manifest.json");
-      const manifestResp = await fetch("chunks/manifest.json");
-      if (!manifestResp.ok) throw new Error("Failed to load chunks/manifest.json");
+      const manifestResp = await fetchAssetWithFallback("chunks/manifest.json");
       const manifest = await manifestResp.json();
 
       // 1. gta3_base.pack (41,491,876 bytes)
       let basePack = toUint8Array(await cacheDB.get("gta3_base.pack"));
       if (!basePack) {
         updateProgress("Downloading game data...", 15, "Fetching chunks/gta3_base.pack.gz (10.28 MB)");
-        const resp = await fetch(`chunks/${manifest.basePack.file}`);
-        if (!resp.ok) throw new Error(`Failed to fetch ${manifest.basePack.file} (${resp.status})`);
+        const resp = await fetchAssetWithFallback(`chunks/${manifest.basePack.file}`);
         basePack = await decompressGzip(resp);
         await cacheDB.set("gta3_base.pack", basePack);
       }
@@ -1497,20 +1508,20 @@
           instance.FS.mkdirTree(dir);
         }
         const slice = basePack.subarray(dataOffset + entry.offset, dataOffset + entry.offset + entry.size);
-        instance.FS.writeFile(fullPath, slice);
+        instance.FS.writeFile(fullPath, slice, { canOwn: true });
       }
 
-      // 2. models/gta3.img (170,891,264 bytes) — cached per <=38 MB slice for Incognito IDB compatibility
+      // 2. models/gta3.img (170,891,264 bytes) — zero-copy mount ({ canOwn: true }) saves 170MB RAM
       const imgBuf = await loadSlicedAsset("models/gta3.img", manifest.gta3Img, "3D World Geometry", 30, 35, updateProgress);
       updateProgress("Writing 3D world geometry...", 68, "Mounting /game/models/gta3.img");
       instance.FS.mkdirTree("/game/models");
-      instance.FS.writeFile("/game/models/gta3.img", imgBuf);
+      instance.FS.writeFile("/game/models/gta3.img", imgBuf, { canOwn: true });
 
-      // 3. audio/sfx.RAW (80,849,468 bytes) — cached per <=17 MB slice
+      // 3. audio/sfx.RAW (80,849,468 bytes) — zero-copy mount ({ canOwn: true }) saves 80MB RAM
       const sfxBuf = await loadSlicedAsset("audio/sfx.RAW", manifest.sfxRaw, "Sound Effects", 70, 20, updateProgress);
       updateProgress("Writing sound effects...", 92, "Mounting /game/audio/sfx.RAW");
       instance.FS.mkdirTree("/game/audio");
-      instance.FS.writeFile("/game/audio/sfx.RAW", sfxBuf);
+      instance.FS.writeFile("/game/audio/sfx.RAW", sfxBuf, { canOwn: true });
 
       // 4. Pre-mount ambient audio (with IndexedDB caching) + any already-cached radio stations
       updateProgress("Caching ambient tracks...", 95, "Loading City.mp3 and Water.mp3");
@@ -1518,8 +1529,8 @@
         loadCachedAudioTrack("City.mp3"),
         loadCachedAudioTrack("Water.mp3")
       ]);
-      instance.FS.writeFile("/game/audio/City.mp3", cityBuf);
-      instance.FS.writeFile("/game/audio/Water.mp3", waterBuf);
+      instance.FS.writeFile("/game/audio/City.mp3", cityBuf, { canOwn: true });
+      instance.FS.writeFile("/game/audio/Water.mp3", waterBuf, { canOwn: true });
 
       let cachedRadioCount = 0;
       const cachedRadios = await Promise.all(
@@ -1527,7 +1538,7 @@
       );
       for (const item of cachedRadios) {
         if (item.bytes) {
-          instance.FS.writeFile(`/game/audio/${item.track}`, item.bytes);
+          instance.FS.writeFile(`/game/audio/${item.track}`, item.bytes, { canOwn: true });
           cachedRadioCount++;
         }
       }
@@ -1695,7 +1706,22 @@
         const netId = this._callPlaying("_mp_spawn_vehicle", (fn) => {
           const id = fn(modelId, col1, col2, warp ? 1 : 0);
           showToast(`🚗 Vehicle #${modelId} spawned!`, "success");
-          Network.broadcastVehicleSpawn(modelId, col1, col2);
+          // Note: When warp === 1, the local player enters the driver seat and the vehicle is automatically
+          // spawned & synced on remote peers via PKT_PLAYER_STATE (state[16..27]). Only broadcast PKT_VEHICLE_SPAWN
+          // when spawning an unoccupied parked vehicle (warp === 0) so remote peers don't get a duplicate ghost car!
+          if (!warp) {
+            const mod = window.re3Module;
+            const coords =
+              typeof mod?._re3_GetPlayerX === "function"
+                ? {
+                    x: mod._re3_GetPlayerX(),
+                    y: mod._re3_GetPlayerY(),
+                    z: mod._re3_GetPlayerZ(),
+                    heading: 0
+                  }
+                : null;
+            Network.broadcastVehicleSpawn(modelId, col1, col2, 0, coords);
+          }
           return id;
         });
         return netId || 0;
@@ -1738,6 +1764,11 @@
       playerName: localStorage.getItem("gta3_player_name") || "Claude Speed",
       peers: new Map(), // peerId -> { peerId, name, pc, dc, lastPos, lastSeen }
       syncInterval: null,
+      interpRafId: null,
+      txSeq: 0,
+      interpolator: window.GTA3MpCore ? new window.GTA3MpCore.PeerInterpolator() : null,
+      pvpTracker: window.GTA3MpCore ? new window.GTA3MpCore.PvpCombatTracker() : null,
+      worldEnv: window.GTA3MpCore ? new window.GTA3MpCore.WorldEnvironmentState() : null,
       stateScratchPtr: null,
       nameScratchPtr: null,
       ambScratchPtr: null,
@@ -1873,6 +1904,13 @@
           clearInterval(this.syncInterval);
           this.syncInterval = null;
         }
+        if (this.interpRafId) {
+          cancelAnimationFrame(this.interpRafId);
+          this.interpRafId = null;
+        }
+        if (this.interpolator) {
+          this.interpolator.clear();
+        }
         for (const [id, p] of this.peers.entries()) {
           if (p.dc) { try { p.dc.close(); } catch (_) {} }
           if (p.pc) { try { p.pc.close(); } catch (_) {} }
@@ -1913,33 +1951,51 @@
       },
 
       sendToPeersOrRelay(pktPayload, preframedFrame = null, channel = 2) {
-        let p2pCount = 0;
-        let totalRemote = 0;
+        if (this.peers.size === 0) return;
 
-        for (const [, peer] of this.peers.entries()) {
-          totalRemote++;
+        const connectedIds = [];
+        const p2pOpenIds = [];
+        for (const [id, peer] of this.peers.entries()) {
+          connectedIds.push(id);
           if (peer.dc && peer.dc.readyState === "open") {
-            try {
-              peer.dc.send(pktPayload);
-              p2pCount++;
-            } catch (_) {}
+            p2pOpenIds.push(id);
           }
         }
 
-        if (totalRemote > 0 && p2pCount < totalRemote) {
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            if (preframedFrame) {
-              this.sendFrame(preframedFrame);
-            } else {
-              const frame = new Uint8Array(4 + pktPayload.length);
-              frame[0] = FRAME_DATA;
-              frame[1] = 0;
-              frame[2] = 0;
-              frame[3] = channel;
-              frame.set(pktPayload, 4);
-              this.sendFrame(frame);
+        if (window.GTA3MpCore) {
+          const plan = window.GTA3MpCore.computeRoutingPlan(this.myPeerId, connectedIds, p2pOpenIds, channel);
+          for (const pid of plan.p2pTargets) {
+            const peer = this.peers.get(pid);
+            if (peer?.dc && peer.dc.readyState === "open") {
+              try { peer.dc.send(pktPayload); } catch (_) {}
             }
           }
+          if (plan.wsTargets.length > 0 && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            for (const target of plan.wsTargets) {
+              if (preframedFrame && target.targetOrPeerId === 0 && target.channel === channel) {
+                this.sendFrame(preframedFrame);
+              } else {
+                const frame = window.GTA3MpCore.buildRelayDataFrame(
+                  target.targetOrPeerId,
+                  target.channel,
+                  pktPayload
+                );
+                this.sendFrame(frame);
+              }
+            }
+          }
+          return;
+        }
+
+        // Fallback if MpCore not loaded
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          const frame = new Uint8Array(4 + pktPayload.length);
+          frame[0] = FRAME_DATA;
+          frame[1] = 0;
+          frame[2] = 0;
+          frame[3] = channel;
+          frame.set(pktPayload, 4);
+          this.sendFrame(frame);
         }
       },
 
@@ -2138,6 +2194,12 @@
             if (this.myPeerId > 0 && this.myPeerId < peerId && !peer.pc) {
               this.initiateRtcConnection(peerId);
             }
+
+            // If we are Host, sync current room weather & time of day to the newly joined peer
+            if (this.isHost && this.worldEnv) {
+              const snap = this.worldEnv.snapshot();
+              this.broadcastWorldSync(snap.weatherId, snap.hour, snap.minute);
+            }
           }
           return;
         }
@@ -2145,6 +2207,9 @@
         // 3. FRAME_PEER_DISCONNECTED (0x03): [0x03, peerHi, peerLo, 0]
         if (frameType === FRAME_PEER_DISCONNECTED) {
           const peerId = (bytes[1] << 8) | bytes[2];
+          if (this.interpolator) {
+            this.interpolator.removePeer(peerId);
+          }
           const peer = this.peers.get(peerId);
           if (peer) {
             showToast(`👋 ${peer.name} left the room`, "info");
@@ -2202,44 +2267,65 @@
         }
       },
 
+      syncPeerToWasm(peerId, nameBytes, state28) {
+        const mod = window.re3Module;
+        if (!mod || !Engine.isPlaying() || !this.ensureScratchPtrs(mod)) return;
+        try {
+          mod.HEAPF32.set(state28, this.stateScratchPtr >> 2);
+          const safeLen = Math.min(nameBytes ? nameBytes.length : 0, 31);
+          if (safeLen > 0) {
+            mod.HEAPU8.set(nameBytes.subarray(0, safeLen), this.nameScratchPtr);
+          }
+          mod.HEAPU8[this.nameScratchPtr + safeLen] = 0;
+          if (typeof mod._mp_sync_remote_peer === "function") {
+            mod._mp_sync_remote_peer(peerId, this.nameScratchPtr, this.stateScratchPtr);
+          }
+        } catch (_) {}
+      },
+
       handlePayload(senderId, payload) {
         if (payload.length < 1) return;
         const pktType = payload[0];
         if (senderId === this.myPeerId && pktType !== PKT_RTC_SIGNAL) return;
 
-        // PKT_PLAYER_STATE (0x10): [0x10, peerId, nameLen, ...name, ...112 bytes float32]
+        // PKT_PLAYER_STATE (0x10): [0x10, peerId, nameLen, ...name, ...112B float32, optional 4B seq/ts]
         if (pktType === PKT_PLAYER_STATE && payload.length >= 115) {
-          const nameLen = payload[2];
-          const floatOffset = 3 + nameLen;
-          if (payload.length >= floatOffset + 112) {
-            try {
-              if (!this.rxFloatView) {
-                this.rxFloatView = new Float32Array(28);
-              }
-              const dv = new DataView(payload.buffer, payload.byteOffset + floatOffset, 112);
-              for (let i = 0; i < 28; i++) {
-                this.rxFloatView[i] = dv.getFloat32(i * 4, true);
-              }
+          if (window.GTA3MpCore) {
+            const decoded = window.GTA3MpCore.decodePlayerStatePacket(payload);
+            if (!decoded) return;
+            const effectivePeerId = senderId || decoded.peerId;
+            if (!effectivePeerId || effectivePeerId === this.myPeerId) return;
 
-              const peer = this.peers.get(senderId);
-              if (peer) {
-                peer.lastPos = { x: this.rxFloatView[0], y: this.rxFloatView[1], z: this.rxFloatView[2] };
-                peer.lastSeen = Date.now();
-              }
+            const nowMs = performance.now();
+            const accepted = this.interpolator
+              ? this.interpolator.ingestPacket(
+                  effectivePeerId,
+                  decoded.state,
+                  decoded.seq,
+                  nowMs,
+                  decoded.playerName
+                )
+              : true;
+            if (!accepted) return;
 
-              const mod = window.re3Module;
-              if (mod && Engine.isPlaying() && this.ensureScratchPtrs(mod)) {
-                mod.HEAPF32.set(this.rxFloatView, this.stateScratchPtr >> 2);
-                const safeNameLen = Math.min(nameLen, 31);
-                const nameBytes = payload.subarray(3, 3 + safeNameLen);
-                mod.HEAPU8.set(nameBytes, this.nameScratchPtr);
-                mod.HEAPU8[this.nameScratchPtr + safeNameLen] = 0;
+            let peer = this.peers.get(effectivePeerId);
+            if (!peer) {
+              peer = { peerId: effectivePeerId, name: decoded.playerName, lastSeen: Date.now() };
+              this.peers.set(effectivePeerId, peer);
+              this.updateRosterUI();
+            } else if (decoded.playerName && peer.name !== decoded.playerName) {
+              peer.name = decoded.playerName;
+              this.updateRosterUI();
+            }
+            peer.lastPos = { x: decoded.state[0], y: decoded.state[1], z: decoded.state[2] };
+            peer.lastSeen = Date.now();
 
-                if (typeof mod._mp_sync_remote_peer === "function") {
-                  mod._mp_sync_remote_peer(senderId, this.nameScratchPtr, this.stateScratchPtr);
-                }
-              }
-            } catch (_) {}
+            const sampled = this.interpolator
+              ? this.interpolator.sample(effectivePeerId, nowMs)
+              : decoded.state;
+            if (sampled) {
+              this.syncPeerToWasm(effectivePeerId, decoded.nameBytes, sampled);
+            }
           }
           return;
         }
@@ -2256,7 +2342,7 @@
               this.handleRtcSignal(originSenderId, signal);
             } catch (_) {}
           } else if (this.isHost && targetPeerId !== 1) {
-            // Forward signal to target client
+            // Legacy fallback if relay routed client-to-client RTC signal via Host
             const fwdFrame = new Uint8Array(4 + payload.length);
             fwdFrame[0] = FRAME_DATA;
             fwdFrame[1] = (targetPeerId >> 8) & 0xff;
@@ -2270,23 +2356,43 @@
 
         // PKT_WORLD_SYNC (0x11): [0x11, weatherId, hour, minute]
         if (pktType === PKT_WORLD_SYNC && payload.length >= 4) {
+          const weatherId = payload[1] & 0x03;
+          const hour = payload[2] % 24;
+          const minute = payload[3] % 60;
+          if (this.worldEnv) {
+            this.worldEnv.applyPacket({ weatherId, hour, minute });
+          }
           if (Engine.isPlaying()) {
-            Engine.setWeatherTime(payload[1], payload[2], payload[3]);
+            Engine.setWeatherTime(weatherId, hour, minute);
           } else {
-            this.pendingWorldSync = { weatherId: payload[1], hour: payload[2], minute: payload[3] };
+            this.pendingWorldSync = { weatherId, hour, minute };
           }
           return;
         }
 
-        // PKT_VEHICLE_SPAWN (0x12): [0x12, modelHi, modelLo, col1, col2]
+        // PKT_VEHICLE_SPAWN (0x12): [0x12, modelHi, modelLo, col1, col2, optional warp & coords]
         if (pktType === PKT_VEHICLE_SPAWN && payload.length >= 5) {
           if (!Engine.isPlaying()) return;
-          const modelId = (payload[1] << 8) | payload[2];
-          const col1 = payload[3] === 255 ? -1 : payload[3];
-          const col2 = payload[4] === 255 ? -1 : payload[4];
+          const decoded = window.GTA3MpCore
+            ? window.GTA3MpCore.decodeVehicleSpawnPacket(payload)
+            : {
+                modelId: (payload[1] << 8) | payload[2],
+                col1: payload[3] === 255 ? -1 : payload[3],
+                col2: payload[4] === 255 ? -1 : payload[4],
+                warp: false,
+                coords: null
+              };
+          if (!decoded || decoded.warp) return;
           try {
-            if (window.re3Module?._mp_spawn_vehicle) {
-              window.re3Module._mp_spawn_vehicle(modelId, col1, col2, 0);
+            // Only spawn unoccupied remote vehicles if within 220m of local player to avoid pool exhaustion
+            const mod = window.re3Module;
+            if (decoded.coords && typeof mod?._re3_GetPlayerX === "function") {
+              const dx = decoded.coords.x - mod._re3_GetPlayerX();
+              const dy = decoded.coords.y - mod._re3_GetPlayerY();
+              if (dx * dx + dy * dy > 220 * 220) return;
+            }
+            if (mod?._mp_spawn_vehicle) {
+              mod._mp_spawn_vehicle(decoded.modelId, decoded.col1, decoded.col2, 0);
             }
           } catch (_) {}
           return;
@@ -2301,7 +2407,7 @@
           return;
         }
 
-        // PKT_PVP_HIT (0x14): [0x14, targetPeerId, damage, weaponType]
+        // PKT_PVP_HIT (0x14): [0x14, targetPeerId, damage, weaponType, optional attackerPeerId]
         if (pktType === PKT_PVP_HIT && payload.length >= 4) {
           if (payload[1] === this.myPeerId && Engine.isPlaying()) {
             Engine.applyPvpHit(payload[2], payload[3]);
@@ -2351,13 +2457,35 @@
 
       startSyncLoop() {
         if (this.syncInterval) clearInterval(this.syncInterval);
-        let cachedName = null;
-        let cachedPeerId = -1;
-        let frameBuf = null;
-        let floatByteOffset = 0;
-        let ambTick = 0;
+        if (this.interpRafId) cancelAnimationFrame(this.interpRafId);
 
-        // 25 Hz = 40 ms
+        let ambTick = 0;
+        const localStateBuf = new Float32Array(28);
+        const remoteStateMap = new Map();
+
+        // 60 FPS Render-Frame Remote Peer Interpolation Loop:
+        // Continuously feeds smooth Hermite/dead-reckoned positions & velocities to WASM right before each frame
+        const pumpRemoteInterpolation = () => {
+          if (!this.myPeerId) {
+            this.interpRafId = null;
+            return;
+          }
+          if (this.interpolator && this.peers.size > 0 && Engine.isPlaying()) {
+            const nowMs = performance.now();
+            for (const [peerId] of this.peers.entries()) {
+              const entry = this.interpolator.getPeerEntry(peerId);
+              if (!entry || nowMs - entry.lastArrivalMs > 5000) continue;
+              const sampled = this.interpolator.sample(peerId, nowMs);
+              if (sampled) {
+                this.syncPeerToWasm(peerId, entry.nameBytes, sampled);
+              }
+            }
+          }
+          this.interpRafId = requestAnimationFrame(pumpRemoteInterpolation);
+        };
+        this.interpRafId = requestAnimationFrame(pumpRemoteInterpolation);
+
+        // 25 Hz (40 ms) Authoritative State & Combat Sync Loop
         this.syncInterval = setInterval(() => {
           const mod = window.re3Module;
           if (!mod || !this.myPeerId || !Engine.isPlaying()) return;
@@ -2376,30 +2504,49 @@
 
           try {
             if (typeof mod._mp_get_local_state === "function" && this.ensureScratchPtrs(mod)) {
-              if (!frameBuf || cachedName !== this.playerName || cachedPeerId !== this.myPeerId) {
-                cachedName = this.playerName;
-                cachedPeerId = this.myPeerId;
-                const nameBytes = this.encodePlayerName(cachedName);
-                const pktLen = 4 + 1 + 1 + 1 + nameBytes.length + (28 * 4);
-                frameBuf = new Uint8Array(pktLen);
-                // Header: FRAME_DATA (0x01), peer 0, channel 2 (P2P fast broadcast)
-                frameBuf[0] = FRAME_DATA;
-                frameBuf[1] = 0;
-                frameBuf[2] = 0;
-                frameBuf[3] = 2;
-                frameBuf[4] = PKT_PLAYER_STATE;
-                frameBuf[5] = this.myPeerId;
-                frameBuf[6] = nameBytes.length;
-                frameBuf.set(nameBytes, 7);
-                floatByteOffset = 7 + nameBytes.length;
+              mod._mp_get_local_state(this.stateScratchPtr);
+              const baseIdx = this.stateScratchPtr >> 2;
+              for (let i = 0; i < 28; i++) {
+                localStateBuf[i] = mod.HEAPF32[baseIdx + i];
               }
 
-              mod._mp_get_local_state(this.stateScratchPtr);
-              // Copy raw 112 bytes via Uint8Array so any playerName byte length is alignment-safe
-              const stateBytes = new Uint8Array(mod.HEAPF32.buffer, this.stateScratchPtr, 28 * 4);
-              frameBuf.set(stateBytes, floatByteOffset);
+              this.txSeq = (this.txSeq + 1) & 0xffff;
+              const nowMs = performance.now();
 
-              this.sendToPeersOrRelay(frameBuf.subarray(4), frameBuf, 2);
+              if (window.GTA3MpCore && this.peers.size > 0) {
+                const statePkt = window.GTA3MpCore.encodePlayerStatePacket(
+                  this.myPeerId,
+                  this.playerName,
+                  localStateBuf,
+                  this.txSeq,
+                  nowMs
+                );
+                this.sendToPeersOrRelay(statePkt, null, 2);
+
+                // Evaluate local PvP hits (firearm cone/ray + high-speed vehicle ramming) against active remote peers
+                if (this.pvpTracker && this.interpolator) {
+                  remoteStateMap.clear();
+                  for (const [pid] of this.peers.entries()) {
+                    const rState = this.interpolator.sample(pid, nowMs);
+                    if (rState) remoteStateMap.set(pid, rState);
+                  }
+                  const hits = this.pvpTracker.evaluateHits(localStateBuf, remoteStateMap, nowMs);
+                  for (const hit of hits) {
+                    const hitPkt = window.GTA3MpCore.encodePvpHitPacket(
+                      hit.targetPeerId,
+                      hit.damage,
+                      hit.weaponType,
+                      this.myPeerId
+                    );
+                    const targetPeer = this.peers.get(hit.targetPeerId);
+                    if (targetPeer?.dc && targetPeer.dc.readyState === "open") {
+                      try { targetPeer.dc.send(hitPkt); } catch (_) {}
+                    } else {
+                      this.sendToPeersOrRelay(hitPkt, null, 2);
+                    }
+                  }
+                }
+              }
 
               // Ambient traffic & ped sync: Host exports every ~120ms (~8.3 Hz) to peers
               if (this.isHost && (++ambTick % 3) === 0 && this.peers.size > 0 && typeof mod._mp_export_ambient_state === "function") {
@@ -2438,23 +2585,23 @@
       },
 
       broadcastWorldSync(weatherId, hour, minute) {
-        const frame = new Uint8Array([
-          FRAME_DATA, 0, 0, 2,
-          PKT_WORLD_SYNC, weatherId & 0xff, hour & 0xff, minute & 0xff
-        ]);
-        this.sendFrame(frame);
+        const pkt = window.GTA3MpCore
+          ? window.GTA3MpCore.encodeWorldSyncPacket(weatherId, hour, minute)
+          : new Uint8Array([PKT_WORLD_SYNC, weatherId & 0xff, hour & 0xff, minute & 0xff]);
+        this.sendToPeersOrRelay(pkt, null, 2);
       },
 
-      broadcastVehicleSpawn(modelId, col1, col2) {
-        const c1 = col1 < 0 ? 255 : (col1 & 0xff);
-        const c2 = col2 < 0 ? 255 : (col2 & 0xff);
-        const frame = new Uint8Array([
-          FRAME_DATA, 0, 0, 2,
-          PKT_VEHICLE_SPAWN,
-          (modelId >> 8) & 0xff, modelId & 0xff,
-          c1, c2
-        ]);
-        this.sendFrame(frame);
+      broadcastVehicleSpawn(modelId, col1, col2, warp = 0, coords = null) {
+        const pkt = window.GTA3MpCore
+          ? window.GTA3MpCore.encodeVehicleSpawnPacket(modelId, col1, col2, warp, coords)
+          : new Uint8Array([
+              PKT_VEHICLE_SPAWN,
+              (modelId >> 8) & 0xff,
+              modelId & 0xff,
+              col1 < 0 ? 255 : col1 & 0xff,
+              col2 < 0 ? 255 : col2 & 0xff
+            ]);
+        this.sendToPeersOrRelay(pkt, null, 2);
       },
 
       sendChat(message) {
@@ -2800,22 +2947,24 @@
         chk.addEventListener("change", (e) => Engine.setCheatToggle(Number(e.target.dataset.cheat), e.target.checked));
       });
 
-      // Weather buttons
+      // Weather buttons (preserves current time of day via WorldEnvironmentState)
       document.querySelectorAll("[data-weather]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const w = Number(btn.dataset.weather);
-          Engine.setWeatherTime(w, 12, 0);
-          Network.broadcastWorldSync(w, 12, 0);
+          const snap = Network.worldEnv ? Network.worldEnv.setWeather(w) : { weatherId: w, hour: 12, minute: 0 };
+          Engine.setWeatherTime(snap.weatherId, snap.hour, snap.minute);
+          Network.broadcastWorldSync(snap.weatherId, snap.hour, snap.minute);
           showToast(`Weather set to ${btn.textContent}`, "info");
         });
       });
 
-      // Time buttons
+      // Time buttons (preserves current weather via WorldEnvironmentState)
       document.querySelectorAll("[data-time]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const h = Number(btn.dataset.time);
-          Engine.setWeatherTime(0, h, 0);
-          Network.broadcastWorldSync(0, h, 0);
+          const snap = Network.worldEnv ? Network.worldEnv.setTime(h, 0) : { weatherId: 0, hour: h, minute: 0 };
+          Engine.setWeatherTime(snap.weatherId, snap.hour, snap.minute);
+          Network.broadcastWorldSync(snap.weatherId, snap.hour, snap.minute);
           showToast(`Time set to ${btn.textContent}`, "info");
         });
       });
@@ -3058,6 +3207,12 @@
             console.error("callMain error:", e);
           }
         });
+
+        // Support ?autostart=1 for automated testing & instant launch
+        const bootParams = new URLSearchParams(location.search);
+        if (bootParams.get("autostart") === "1") {
+          btnStart.click();
+        }
 
       } catch (err) {
         console.error("Boot error:", err);
