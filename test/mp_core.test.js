@@ -270,3 +270,29 @@ test("WorldEnvironmentState preserves time when changing weather and preserves w
   assert.equal(decWanted.wantedStars, 4);
   assert.equal(decWanted.neverWanted, false);
 });
+
+test("shouldBlockEngineInput blocks premature clicks/keys during loading and UI capture while allowing Main Menu (7), Gameplay (9), and F2/F3", () => {
+  // During startup (0..6) and world loading splash (8), engine input is blocked
+  for (const gs of [0, 1, 5, 6, 8]) {
+    assert.equal(MpCore.shouldBlockEngineInput({ gameState: gs, isUiCapturing: false }), true);
+  }
+  // If HTML loading screen overlay is still visible, block even if state reads 7 or 9
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 7, isUiCapturing: false, isLoadingScreenVisible: true }), true);
+  // Main Menu (gameState === 7) and Gameplay (gameState === 9) allow engine input when no overlay/modal is active
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 7, isUiCapturing: false }), false);
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 9, isUiCapturing: false }), false);
+  // When a modal or chat box is open, engine input is blocked even in-game or Main Menu
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 7, isUiCapturing: true }), true);
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 9, isUiCapturing: true }), true);
+  // F2/F3 UI hotkeys are never blocked
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 0, isUiCapturing: true, key: "F2" }), false);
+  assert.equal(MpCore.shouldBlockEngineInput({ gameState: 0, isUiCapturing: true, key: "F3" }), false);
+});
+
+test("re3_wasm.wasm binary passes WebAssembly.validate()", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const wasmBuf = fs.readFileSync(path.resolve(__dirname, "../public/engine/re3_wasm.wasm"));
+  assert.equal(WebAssembly.validate(wasmBuf), true);
+});
+

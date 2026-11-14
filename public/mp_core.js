@@ -760,6 +760,31 @@
     }
   }
 
+  /**
+   * Determines whether browser keyboard/mouse/wheel/pointer-lock input should be blocked
+   * from reaching the Emscripten/GLFW engine input handlers.
+   *
+   * Allows Main Menu (gameState === 7) and active Gameplay (gameState === 9), while blocking
+   * premature clicks or keypresses during startup (0..6), world loading splash (8), or HTML UI capture.
+   */
+  function shouldBlockEngineInput(options = {}) {
+    const {
+      gameState = 0,
+      isUiCapturing = false,
+      isLoadingScreenVisible = false,
+      key = null
+    } = options;
+
+    if (key === "F2" || key === "F3") {
+      return false;
+    }
+    if (isLoadingScreenVisible || isUiCapturing) {
+      return true;
+    }
+    const gs = Number(gameState);
+    return gs !== 7 && gs !== 9;
+  }
+
   return {
     FRAME_DATA,
     FRAME_PEER_CONNECTED,
@@ -797,6 +822,8 @@
     computeRoutingPlan,
     PeerInterpolator,
     PvpCombatTracker,
-    WorldEnvironmentState
+    WorldEnvironmentState,
+    shouldBlockEngineInput
   };
 });
+

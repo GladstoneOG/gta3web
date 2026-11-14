@@ -1109,6 +1109,11 @@
         return isTextEntryElement(document.activeElement) || hasOpenModal() || Boolean(chatInputBox?.classList.contains("active"));
       }
 
+      function isLoadingScreenVisible() {
+        const ls = document.getElementById("loading-screen");
+        return Boolean(ls && ls.style.display !== "none");
+      }
+
       updateCanvasSize();
       window.addEventListener("resize", updateCanvasSize);
       document.addEventListener("fullscreenchange", updateCanvasSize);
@@ -1144,6 +1149,7 @@
       if (rawRequestPointerLock) {
         canvas.requestPointerLock = function (...args) {
           try {
+            if (!Engine.isPlaying()) return undefined;
             if (window.re3Module?._re3_IsMenuActive?.()) return undefined;
             if (document.pointerLockElement === canvas) return undefined;
             const now = performance.now();
@@ -1159,8 +1165,32 @@
         };
       }
 
+      // Capture-phase mouse/touch/wheel guard: block premature canvas clicks during loading
+      // (before GS_FRONTEND = 7 or during GS_INIT_PLAYING_GAME = 8) or when HTML UI overlays are active
+      for (const mouseEvt of ["mousedown", "mouseup", "click", "wheel", "touchstart", "touchend"]) {
+        window.addEventListener(mouseEvt, (e) => {
+          const isCanvasTarget = (e.target === canvas || canvas.contains(e.target));
+          if (!isCanvasTarget) return;
+          const gameState = window.re3Module?._re3_GetGameState?.() ?? 0;
+          const block = window.GTA3MpCore?.shouldBlockEngineInput
+            ? window.GTA3MpCore.shouldBlockEngineInput({
+                gameState,
+                isUiCapturing: isUiCapturingInput(),
+                isLoadingScreenVisible: isLoadingScreenVisible()
+              })
+            : ((!Engine.isPlaying() && gameState !== 7) || isUiCapturingInput() || isLoadingScreenVisible());
+          if (block) {
+            e.stopImmediatePropagation();
+            if (mouseEvt === "click" || mouseEvt === "mousedown") {
+              e.preventDefault();
+            }
+          }
+        }, { capture: true, passive: false });
+      }
+
       // Pointer lock on canvas click
       canvas.addEventListener("click", () => {
+        if (!Engine.isPlaying()) return;
         const chatInputBox = document.getElementById("chat-input-box");
         if (chatInputBox?.classList.contains("active")) {
           chatInputBox.classList.remove("active");
@@ -1178,7 +1208,7 @@
       // Keep RMB and mouse wheel responsive for game aiming/weapon cycling instead of opening browser menus or scrolling
       canvas.addEventListener("contextmenu", (e) => e.preventDefault());
       canvas.addEventListener("wheel", (e) => {
-        if (!hasOpenModal() && !window.re3Module?._re3_IsMenuActive?.()) {
+        if (Engine.isPlaying() && !hasOpenModal() && !window.re3Module?._re3_IsMenuActive?.()) {
           e.preventDefault();
         }
       }, { passive: false });
@@ -1195,7 +1225,7 @@
         window.re3Module?._re3_SetPointerLockActive?.(isLockedNow ? 1 : 0);
         if (isLockedNow) {
           pointerWasLocked = true;
-          if (window.re3Module?._re3_IsMenuActive?.() || hasOpenModal() || isUiCapturingInput()) {
+          if (!Engine.isPlaying() || window.re3Module?._re3_IsMenuActive?.() || hasOpenModal() || isUiCapturingInput()) {
             suppressUnlockPause();
             window.re3Module?._re3_SetPointerLockActive?.(0);
             try { document.exitPointerLock?.(); } catch (_) {}
@@ -1292,6 +1322,12 @@
             canvas.focus();
             return;
           }
+          if (!Engine.isPlaying()) {
+            if ((window.re3Module?._re3_GetGameState?.() ?? 0) !== 7 || isLoadingScreenVisible()) {
+              e.stopImmediatePropagation();
+            }
+            return;
+          }
           if (Engine.isPlaying() && !window.re3Module?._re3_IsMenuActive?.()) {
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -1305,7 +1341,7 @@
           return;
         }
         if ((e.key === "t" || e.key === "T") && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          if (!isUiCapturingInput() && !window.re3Module?._re3_IsMenuActive?.()) {
+          if (!isUiCapturingInput() && Engine.isPlaying() && !window.re3Module?._re3_IsMenuActive?.()) {
             e.preventDefault();
             e.stopImmediatePropagation();
             onFocusLost();
@@ -1335,7 +1371,16 @@
           return;
         }
 
-        if (isUiCapturingInput()) {
+        const gameState = window.re3Module?._re3_GetGameState?.() ?? 0;
+        const blockKey = window.GTA3MpCore?.shouldBlockEngineInput
+          ? window.GTA3MpCore.shouldBlockEngineInput({
+              gameState,
+              isUiCapturing: isUiCapturingInput(),
+              isLoadingScreenVisible: isLoadingScreenVisible(),
+              key: e.key
+            })
+          : ((!Engine.isPlaying() && gameState !== 7) || isUiCapturingInput() || isLoadingScreenVisible());
+        if (blockKey) {
           e.stopImmediatePropagation();
           return;
         }
@@ -1348,7 +1393,16 @@
 
       for (const evtName of ["keypress", "keyup"]) {
         window.addEventListener(evtName, (e) => {
-          if (isUiCapturingInput() || e.key === "F2" || e.key === "F3") {
+          const gameState = window.re3Module?._re3_GetGameState?.() ?? 0;
+          const blockKey = window.GTA3MpCore?.shouldBlockEngineInput
+            ? window.GTA3MpCore.shouldBlockEngineInput({
+                gameState,
+                isUiCapturing: isUiCapturingInput(),
+                isLoadingScreenVisible: isLoadingScreenVisible(),
+                key: e.key
+              })
+            : ((!Engine.isPlaying() && gameState !== 7) || isUiCapturingInput() || isLoadingScreenVisible());
+          if (blockKey || e.key === "F2" || e.key === "F3") {
             e.stopImmediatePropagation();
           }
         }, { capture: true });
