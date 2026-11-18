@@ -1,0 +1,1208 @@
+{
+  "version": 1,
+  "format": "GTA3PK01",
+  "core": {
+    "compressedSize": 150293422,
+    "uncompressedSize": 309173474,
+    "sha256": "56c5d1ef53027c6104693578998473ff0f8c0424f7a7b4630aed7850b5264307",
+    "chunkSizeLimit": 18874368,
+    "chunks": [
+      "/chunks/core.part00",
+      "/chunks/core.part01",
+      "/chunks/core.part02",
+      "/chunks/core.part03",
+      "/chunks/core.part04",
+      "/chunks/core.part05",
+      "/chunks/core.part06",
+      "/chunks/core.part07"
+    ],
+    "fileCount": 199
+  },
+  "cuts": {
+    "compressedSize": 33376541,
+    "uncompressedSize": 43634719,
+    "sha256": "73d6f1f48b7362fdef3ac19d4c96b33ba0a35aa270dceab5f56d9951c5af2961",
+    "chunkSizeLimit": 18874368,
+    "chunks": [
+      "/chunks/cuts.part00",
+      "/chunks/cuts.part01"
+    ],
+    "fileCount": 1
+  },
+  "streamedSoundCount": 196,
+  "soundTable": [
+    "head.wav",
+    "class.wav",
+    "kjah.wav",
+    "rise.wav",
+    "lips.wav",
+    "game.wav",
+    "msx.wav",
+    "flash.wav",
+    "chat.wav",
+    "head.wav",
+    "police.wav",
+    "city.wav",
+    "water.wav",
+    "comopen.wav",
+    "subopen.wav",
+    "jb.mp3",
+    "bet.mp3",
+    "l1_lg.mp3",
+    "l2_dsb.mp3",
+    "l3_dm.mp3",
+    "l4_pap.mp3",
+    "l5_tfb.mp3",
+    "j0_dm2.mp3",
+    "j1_lfl.mp3",
+    "j2_kcl.mp3",
+    "j3_vh.mp3",
+    "j4_eth.mp3",
+    "j5_dst.mp3",
+    "j6_tbj.mp3",
+    "t1_tol.mp3",
+    "t2_tpu.mp3",
+    "t3_mas.mp3",
+    "t4_tat.mp3",
+    "t5_bf.mp3",
+    "s0_mas.mp3",
+    "s1_pf.mp3",
+    "s2_ctg.mp3",
+    "s3_rtc.mp3",
+    "s5_lrq.mp3",
+    "s4_bdba.mp3",
+    "s4_bdbb.mp3",
+    "s2_ctg2.mp3",
+    "s4_bdbd.mp3",
+    "s5_lrqb.mp3",
+    "s5_lrqc.mp3",
+    "a1_sso.wav",
+    "a2_pp.wav",
+    "a3_ss.wav",
+    "a4_pdr.wav",
+    "a5_k2ft.wav",
+    "k1_kbo.mp3",
+    "k2_gis.mp3",
+    "k3_ds.mp3",
+    "k4_shi.mp3",
+    "k5_sd.mp3",
+    "r0_pdr2.mp3",
+    "r1_sw.mp3",
+    "r2_ap.mp3",
+    "r3_ed.mp3",
+    "r4_gf.mp3",
+    "r5_pb.mp3",
+    "r6_mm.mp3",
+    "d1_stog.mp3",
+    "d2_kk.mp3",
+    "d3_ado.mp3",
+    "d5_es.mp3",
+    "d7_mld.mp3",
+    "d4_gta.mp3",
+    "d4_gta2.mp3",
+    "d6_sts.mp3",
+    "a6_bait.wav",
+    "a7_etg.wav",
+    "a8_ps.wav",
+    "a9_asd.wav",
+    "k4_shi2.mp3",
+    "c1_tex.mp3",
+    "el_ph1.mp3",
+    "el_ph2.mp3",
+    "el_ph3.mp3",
+    "el_ph4.mp3",
+    "yd_ph1.mp3",
+    "yd_ph2.mp3",
+    "yd_ph3.mp3",
+    "yd_ph4.mp3",
+    "hd_ph1.mp3",
+    "hd_ph2.mp3",
+    "hd_ph3.mp3",
+    "hd_ph4.mp3",
+    "hd_ph5.mp3",
+    "mt_ph1.mp3",
+    "mt_ph2.mp3",
+    "mt_ph3.mp3",
+    "mt_ph4.mp3",
+    "miscom.wav",
+    "end.mp3",
+    "lib_a1.wav",
+    "lib_a2.wav",
+    "lib_a.wav",
+    "lib_b.wav",
+    "lib_c.wav",
+    "lib_d.wav",
+    "l2_a.wav",
+    "j4t_1.wav",
+    "j4t_2.wav",
+    "j4t_3.wav",
+    "j4t_4.wav",
+    "j4_a.wav",
+    "j4_b.wav",
+    "j4_c.wav",
+    "j4_d.wav",
+    "j4_e.wav",
+    "j4_f.wav",
+    "j6_1.wav",
+    "j6_a.wav",
+    "j6_b.wav",
+    "j6_c.wav",
+    "j6_d.wav",
+    "t4_a.wav",
+    "s1_a.wav",
+    "s1_a1.wav",
+    "s1_b.wav",
+    "s1_c.wav",
+    "s1_c1.wav",
+    "s1_d.wav",
+    "s1_e.wav",
+    "s1_f.wav",
+    "s1_g.wav",
+    "s1_h.wav",
+    "s1_i.wav",
+    "s1_j.wav",
+    "s1_k.wav",
+    "s1_l.wav",
+    "s3_a.wav",
+    "s3_b.wav",
+    "el3_a.wav",
+    "mf1_a.wav",
+    "mf2_a.wav",
+    "mf3_a.wav",
+    "mf3_b.wav",
+    "mf3_b1.wav",
+    "mf3_c.wav",
+    "mf4_a.wav",
+    "mf4_b.wav",
+    "mf4_c.wav",
+    "a1_a.wav",
+    "a3_a.wav",
+    "a5_a.wav",
+    "a4_a.wav",
+    "a4_b.wav",
+    "a4_c.wav",
+    "a4_d.wav",
+    "k1_a.wav",
+    "k3_a.wav",
+    "r1_a.wav",
+    "r2_a.wav",
+    "r2_b.wav",
+    "r2_c.wav",
+    "r2_d.wav",
+    "r2_e.wav",
+    "r2_f.wav",
+    "r2_g.wav",
+    "r2_h.wav",
+    "r5_a.wav",
+    "r6_a.wav",
+    "r6_a1.wav",
+    "r6_b.wav",
+    "lo2_a.wav",
+    "lo6_a.wav",
+    "yd2_a.wav",
+    "yd2_b.wav",
+    "yd2_c.wav",
+    "yd2_c1.wav",
+    "yd2_d.wav",
+    "yd2_e.wav",
+    "yd2_f.wav",
+    "yd2_g.wav",
+    "yd2_h.wav",
+    "yd2_ass.wav",
+    "yd2_ok.wav",
+    "h5_a.wav",
+    "h5_b.wav",
+    "h5_c.wav",
+    "ammu_a.wav",
+    "ammu_b.wav",
+    "ammu_c.wav",
+    "door_1.wav",
+    "door_2.wav",
+    "door_3.wav",
+    "door_4.wav",
+    "door_5.wav",
+    "door_6.wav",
+    "t3_a.wav",
+    "t3_b.wav",
+    "t3_c.wav",
+    "k1_b.wav",
+    "cat1.wav"
+  ],
+  "audioStreams": {
+    "a1_a.wav": {
+      "url": "/audio/a1_a.mp3",
+      "durationMs": 1346,
+      "size": 12524
+    },
+    "a1_sso.wav": {
+      "url": "/audio/a1_sso.mp3",
+      "durationMs": 43411,
+      "size": 521707
+    },
+    "a2_pp.wav": {
+      "url": "/audio/a2_pp.mp3",
+      "durationMs": 19762,
+      "size": 238017
+    },
+    "a3_a.wav": {
+      "url": "/audio/a3_a.mp3",
+      "durationMs": 2320,
+      "size": 20314
+    },
+    "a3_ss.wav": {
+      "url": "/audio/a3_ss.mp3",
+      "durationMs": 40727,
+      "size": 489733
+    },
+    "a4_a.wav": {
+      "url": "/audio/a4_a.mp3",
+      "durationMs": 2062,
+      "size": 17900
+    },
+    "a4_b.wav": {
+      "url": "/audio/a4_b.mp3",
+      "durationMs": 2062,
+      "size": 17900
+    },
+    "a4_c.wav": {
+      "url": "/audio/a4_c.mp3",
+      "durationMs": 2188,
+      "size": 19052
+    },
+    "a4_d.wav": {
+      "url": "/audio/a4_d.mp3",
+      "durationMs": 2146,
+      "size": 18668
+    },
+    "a4_pdr.wav": {
+      "url": "/audio/a4_pdr.mp3",
+      "durationMs": 31471,
+      "size": 378451
+    },
+    "a5_a.wav": {
+      "url": "/audio/a5_a.mp3",
+      "durationMs": 3567,
+      "size": 30345
+    },
+    "a5_k2ft.wav": {
+      "url": "/audio/a5_k2ft.mp3",
+      "durationMs": 19391,
+      "size": 233628
+    },
+    "a6_bait.wav": {
+      "url": "/audio/a6_bait.mp3",
+      "durationMs": 31702,
+      "size": 381272
+    },
+    "a7_etg.wav": {
+      "url": "/audio/a7_etg.mp3",
+      "durationMs": 31008,
+      "size": 373122
+    },
+    "a8_ps.wav": {
+      "url": "/audio/a8_ps.mp3",
+      "durationMs": 44152,
+      "size": 530747
+    },
+    "a9_asd.wav": {
+      "url": "/audio/a9_asd.mp3",
+      "durationMs": 13930,
+      "size": 168063
+    },
+    "ammu_a.wav": {
+      "url": "/audio/ammu_a.mp3",
+      "durationMs": 1430,
+      "size": 12908
+    },
+    "ammu_b.wav": {
+      "url": "/audio/ammu_b.mp3",
+      "durationMs": 1304,
+      "size": 12140
+    },
+    "ammu_c.wav": {
+      "url": "/audio/ammu_c.mp3",
+      "durationMs": 2567,
+      "size": 22124
+    },
+    "bet.mp3": {
+      "url": "/audio/bet.mp3",
+      "durationMs": 36945,
+      "size": 591122
+    },
+    "c1_tex.mp3": {
+      "url": "/audio/c1_tex.mp3",
+      "durationMs": 65236,
+      "size": 1043772
+    },
+    "cat1.wav": {
+      "url": "/audio/cat1.mp3",
+      "durationMs": 1623,
+      "size": 21212
+    },
+    "chat.wav": {
+      "url": "/audio/chat.mp3",
+      "durationMs": 3484782,
+      "size": 17424404
+    },
+    "city.wav": {
+      "url": "/audio/city.mp3",
+      "durationMs": 600443,
+      "size": 7206236
+    },
+    "class.wav": {
+      "url": "/audio/class.mp3",
+      "durationMs": 1236703,
+      "size": 14841404
+    },
+    "comopen.wav": {
+      "url": "/audio/comopen.mp3",
+      "durationMs": 17002,
+      "size": 205244
+    },
+    "d1_stog.mp3": {
+      "url": "/audio/d1_stog.mp3",
+      "durationMs": 46088,
+      "size": 737408
+    },
+    "d2_kk.mp3": {
+      "url": "/audio/d2_kk.mp3",
+      "durationMs": 42823,
+      "size": 685163
+    },
+    "d3_ado.mp3": {
+      "url": "/audio/d3_ado.mp3",
+      "durationMs": 26888,
+      "size": 430208
+    },
+    "d4_gta.mp3": {
+      "url": "/audio/d4_gta.mp3",
+      "durationMs": 27802,
+      "size": 444837
+    },
+    "d4_gta2.mp3": {
+      "url": "/audio/d4_gta2.mp3",
+      "durationMs": 88485,
+      "size": 1415756
+    },
+    "d5_es.mp3": {
+      "url": "/audio/d5_es.mp3",
+      "durationMs": 19104,
+      "size": 305656
+    },
+    "d6_sts.mp3": {
+      "url": "/audio/d6_sts.mp3",
+      "durationMs": 20201,
+      "size": 323210
+    },
+    "d7_mld.mp3": {
+      "url": "/audio/d7_mld.mp3",
+      "durationMs": 16752,
+      "size": 268040
+    },
+    "door_1.wav": {
+      "url": "/audio/door_1.mp3",
+      "durationMs": 1017,
+      "size": 13292
+    },
+    "door_2.wav": {
+      "url": "/audio/door_2.mp3",
+      "durationMs": 550,
+      "size": 7532
+    },
+    "door_3.wav": {
+      "url": "/audio/door_3.mp3",
+      "durationMs": 2260,
+      "size": 28256
+    },
+    "door_4.wav": {
+      "url": "/audio/door_4.mp3",
+      "durationMs": 2092,
+      "size": 26375
+    },
+    "door_5.wav": {
+      "url": "/audio/door_5.mp3",
+      "durationMs": 46,
+      "size": 1611
+    },
+    "door_6.wav": {
+      "url": "/audio/door_6.mp3",
+      "durationMs": 46,
+      "size": 1611
+    },
+    "el3_a.wav": {
+      "url": "/audio/el3_a.mp3",
+      "durationMs": 2906,
+      "size": 24911
+    },
+    "el_ph1.mp3": {
+      "url": "/audio/el_ph1.mp3",
+      "durationMs": 22212,
+      "size": 355393
+    },
+    "el_ph2.mp3": {
+      "url": "/audio/el_ph2.mp3",
+      "durationMs": 36057,
+      "size": 576912
+    },
+    "el_ph3.mp3": {
+      "url": "/audio/el_ph3.mp3",
+      "durationMs": 36005,
+      "size": 576076
+    },
+    "el_ph4.mp3": {
+      "url": "/audio/el_ph4.mp3",
+      "durationMs": 28037,
+      "size": 448598
+    },
+    "end.mp3": {
+      "url": "/audio/end.mp3",
+      "durationMs": 537268,
+      "size": 8596295
+    },
+    "flash.wav": {
+      "url": "/audio/flash.mp3",
+      "durationMs": 1126041,
+      "size": 13513436
+    },
+    "game.wav": {
+      "url": "/audio/game.mp3",
+      "durationMs": 944691,
+      "size": 11336977
+    },
+    "h5_a.wav": {
+      "url": "/audio/h5_a.mp3",
+      "durationMs": 5470,
+      "size": 45164
+    },
+    "h5_b.wav": {
+      "url": "/audio/h5_b.mp3",
+      "durationMs": 2230,
+      "size": 19436
+    },
+    "h5_c.wav": {
+      "url": "/audio/h5_c.mp3",
+      "durationMs": 1725,
+      "size": 15212
+    },
+    "hd_ph1.mp3": {
+      "url": "/audio/hd_ph1.mp3",
+      "durationMs": 31956,
+      "size": 511292
+    },
+    "hd_ph2.mp3": {
+      "url": "/audio/hd_ph2.mp3",
+      "durationMs": 16935,
+      "size": 270966
+    },
+    "hd_ph3.mp3": {
+      "url": "/audio/hd_ph3.mp3",
+      "durationMs": 23257,
+      "size": 372112
+    },
+    "hd_ph4.mp3": {
+      "url": "/audio/hd_ph4.mp3",
+      "durationMs": 22160,
+      "size": 354557
+    },
+    "hd_ph5.mp3": {
+      "url": "/audio/hd_ph5.mp3",
+      "durationMs": 22160,
+      "size": 354557
+    },
+    "head.wav": {
+      "url": "/audio/head.mp3",
+      "durationMs": 1406066,
+      "size": 16874110
+    },
+    "j0_dm2.mp3": {
+      "url": "/audio/j0_dm2.mp3",
+      "durationMs": 28638,
+      "size": 458211
+    },
+    "j1_lfl.mp3": {
+      "url": "/audio/j1_lfl.mp3",
+      "durationMs": 31773,
+      "size": 508366
+    },
+    "j2_kcl.mp3": {
+      "url": "/audio/j2_kcl.mp3",
+      "durationMs": 32766,
+      "size": 524249
+    },
+    "j3_vh.mp3": {
+      "url": "/audio/j3_vh.mp3",
+      "durationMs": 28429,
+      "size": 454868
+    },
+    "j4_a.wav": {
+      "url": "/audio/j4_a.mp3",
+      "durationMs": 2482,
+      "size": 21356
+    },
+    "j4_b.wav": {
+      "url": "/audio/j4_b.mp3",
+      "durationMs": 3240,
+      "size": 27500
+    },
+    "j4_c.wav": {
+      "url": "/audio/j4_c.mp3",
+      "durationMs": 2945,
+      "size": 25196
+    },
+    "j4_d.wav": {
+      "url": "/audio/j4_d.mp3",
+      "durationMs": 4082,
+      "size": 34412
+    },
+    "j4_e.wav": {
+      "url": "/audio/j4_e.mp3",
+      "durationMs": 2440,
+      "size": 20972
+    },
+    "j4_eth.mp3": {
+      "url": "/audio/j4_eth.mp3",
+      "durationMs": 24929,
+      "size": 398861
+    },
+    "j4_f.wav": {
+      "url": "/audio/j4_f.mp3",
+      "durationMs": 1767,
+      "size": 15596
+    },
+    "j4t_1.wav": {
+      "url": "/audio/j4t_1.mp3",
+      "durationMs": 4965,
+      "size": 41324
+    },
+    "j4t_2.wav": {
+      "url": "/audio/j4t_2.mp3",
+      "durationMs": 2440,
+      "size": 20972
+    },
+    "j4t_3.wav": {
+      "url": "/audio/j4t_3.mp3",
+      "durationMs": 2314,
+      "size": 20204
+    },
+    "j4t_4.wav": {
+      "url": "/audio/j4t_4.mp3",
+      "durationMs": 1557,
+      "size": 14060
+    },
+    "j5_dst.mp3": {
+      "url": "/audio/j5_dst.mp3",
+      "durationMs": 22082,
+      "size": 353304
+    },
+    "j6_1.wav": {
+      "url": "/audio/j6_1.mp3",
+      "durationMs": 3913,
+      "size": 32876
+    },
+    "j6_a.wav": {
+      "url": "/audio/j6_a.mp3",
+      "durationMs": 1641,
+      "size": 14828
+    },
+    "j6_b.wav": {
+      "url": "/audio/j6_b.mp3",
+      "durationMs": 1977,
+      "size": 17516
+    },
+    "j6_c.wav": {
+      "url": "/audio/j6_c.mp3",
+      "durationMs": 631,
+      "size": 6764
+    },
+    "j6_d.wav": {
+      "url": "/audio/j6_d.mp3",
+      "durationMs": 2896,
+      "size": 24911
+    },
+    "j6_tbj.mp3": {
+      "url": "/audio/j6_tbj.mp3",
+      "durationMs": 22761,
+      "size": 364170
+    },
+    "jb.mp3": {
+      "url": "/audio/jb.mp3",
+      "durationMs": 113118,
+      "size": 1809891
+    },
+    "k1_a.wav": {
+      "url": "/audio/k1_a.mp3",
+      "durationMs": 2581,
+      "size": 22403
+    },
+    "k1_b.wav": {
+      "url": "/audio/k1_b.mp3",
+      "durationMs": 1599,
+      "size": 14444
+    },
+    "k1_kbo.mp3": {
+      "url": "/audio/k1_kbo.mp3",
+      "durationMs": 33471,
+      "size": 535534
+    },
+    "k2_gis.mp3": {
+      "url": "/audio/k2_gis.mp3",
+      "durationMs": 41177,
+      "size": 658832
+    },
+    "k3_a.wav": {
+      "url": "/audio/k3_a.mp3",
+      "durationMs": 1451,
+      "size": 19052
+    },
+    "k3_ds.mp3": {
+      "url": "/audio/k3_ds.mp3",
+      "durationMs": 26157,
+      "size": 418505
+    },
+    "k4_shi.mp3": {
+      "url": "/audio/k4_shi.mp3",
+      "durationMs": 20253,
+      "size": 324046
+    },
+    "k4_shi2.mp3": {
+      "url": "/audio/k4_shi2.mp3",
+      "durationMs": 13383,
+      "size": 214123
+    },
+    "k5_sd.mp3": {
+      "url": "/audio/k5_sd.mp3",
+      "durationMs": 35352,
+      "size": 565627
+    },
+    "kjah.wav": {
+      "url": "/audio/kjah.mp3",
+      "durationMs": 1144824,
+      "size": 13738940
+    },
+    "l1_lg.mp3": {
+      "url": "/audio/l1_lg.mp3",
+      "durationMs": 65732,
+      "size": 1051713
+    },
+    "l2_a.wav": {
+      "url": "/audio/l2_a.mp3",
+      "durationMs": 5176,
+      "size": 42860
+    },
+    "l2_dsb.mp3": {
+      "url": "/audio/l2_dsb.mp3",
+      "durationMs": 33784,
+      "size": 540549
+    },
+    "l3_dm.mp3": {
+      "url": "/audio/l3_dm.mp3",
+      "durationMs": 30206,
+      "size": 483289
+    },
+    "l4_pap.mp3": {
+      "url": "/audio/l4_pap.mp3",
+      "durationMs": 22865,
+      "size": 365842
+    },
+    "l5_tfb.mp3": {
+      "url": "/audio/l5_tfb.mp3",
+      "durationMs": 28037,
+      "size": 448598
+    },
+    "lib_a.wav": {
+      "url": "/audio/lib_a.mp3",
+      "durationMs": 3366,
+      "size": 28652
+    },
+    "lib_a1.wav": {
+      "url": "/audio/lib_a1.mp3",
+      "durationMs": 2903,
+      "size": 24812
+    },
+    "lib_a2.wav": {
+      "url": "/audio/lib_a2.mp3",
+      "durationMs": 2440,
+      "size": 20972
+    },
+    "lib_b.wav": {
+      "url": "/audio/lib_b.mp3",
+      "durationMs": 6438,
+      "size": 53228
+    },
+    "lib_c.wav": {
+      "url": "/audio/lib_c.mp3",
+      "durationMs": 2861,
+      "size": 24428
+    },
+    "lib_d.wav": {
+      "url": "/audio/lib_d.mp3",
+      "durationMs": 1304,
+      "size": 12140
+    },
+    "lips.wav": {
+      "url": "/audio/lips.mp3",
+      "durationMs": 1207179,
+      "size": 14487310
+    },
+    "lo2_a.wav": {
+      "url": "/audio/lo2_a.mp3",
+      "durationMs": 3332,
+      "size": 28255
+    },
+    "lo6_a.wav": {
+      "url": "/audio/lo6_a.mp3",
+      "durationMs": 4312,
+      "size": 36196
+    },
+    "mf1_a.wav": {
+      "url": "/audio/mf1_a.mp3",
+      "durationMs": 3829,
+      "size": 32108
+    },
+    "mf2_a.wav": {
+      "url": "/audio/mf2_a.mp3",
+      "durationMs": 3997,
+      "size": 33644
+    },
+    "mf3_a.wav": {
+      "url": "/audio/mf3_a.mp3",
+      "durationMs": 4334,
+      "size": 36332
+    },
+    "mf3_b.wav": {
+      "url": "/audio/mf3_b.mp3",
+      "durationMs": 4587,
+      "size": 38252
+    },
+    "mf3_b1.wav": {
+      "url": "/audio/mf3_b1.mp3",
+      "durationMs": 1935,
+      "size": 17132
+    },
+    "mf3_c.wav": {
+      "url": "/audio/mf3_c.mp3",
+      "durationMs": 5260,
+      "size": 43628
+    },
+    "mf4_a.wav": {
+      "url": "/audio/mf4_a.mp3",
+      "durationMs": 1947,
+      "size": 25100
+    },
+    "mf4_b.wav": {
+      "url": "/audio/mf4_b.mp3",
+      "durationMs": 3967,
+      "size": 49292
+    },
+    "mf4_c.wav": {
+      "url": "/audio/mf4_c.mp3",
+      "durationMs": 2308,
+      "size": 29420
+    },
+    "miscom.wav": {
+      "url": "/audio/miscom.mp3",
+      "durationMs": 13284,
+      "size": 160748
+    },
+    "msx.wav": {
+      "url": "/audio/msx.mp3",
+      "durationMs": 1500742,
+      "size": 18010124
+    },
+    "mt_ph1.mp3": {
+      "url": "/audio/mt_ph1.mp3",
+      "durationMs": 27332,
+      "size": 437313
+    },
+    "mt_ph2.mp3": {
+      "url": "/audio/mt_ph2.mp3",
+      "durationMs": 27019,
+      "size": 432298
+    },
+    "mt_ph3.mp3": {
+      "url": "/audio/mt_ph3.mp3",
+      "durationMs": 20070,
+      "size": 321121
+    },
+    "mt_ph4.mp3": {
+      "url": "/audio/mt_ph4.mp3",
+      "durationMs": 20044,
+      "size": 320703
+    },
+    "police.wav": {
+      "url": "/audio/police.mp3",
+      "durationMs": 990017,
+      "size": 11881340
+    },
+    "r0_pdr2.mp3": {
+      "url": "/audio/r0_pdr2.mp3",
+      "durationMs": 36762,
+      "size": 588197
+    },
+    "r1_a.wav": {
+      "url": "/audio/r1_a.mp3",
+      "durationMs": 2723,
+      "size": 23657
+    },
+    "r1_sw.mp3": {
+      "url": "/audio/r1_sw.mp3",
+      "durationMs": 22264,
+      "size": 356229
+    },
+    "r2_a.wav": {
+      "url": "/audio/r2_a.mp3",
+      "durationMs": 2440,
+      "size": 20972
+    },
+    "r2_ap.mp3": {
+      "url": "/audio/r2_ap.mp3",
+      "durationMs": 39766,
+      "size": 636262
+    },
+    "r2_b.wav": {
+      "url": "/audio/r2_b.mp3",
+      "durationMs": 3450,
+      "size": 29036
+    },
+    "r2_c.wav": {
+      "url": "/audio/r2_c.mp3",
+      "durationMs": 2819,
+      "size": 24044
+    },
+    "r2_d.wav": {
+      "url": "/audio/r2_d.mp3",
+      "durationMs": 1262,
+      "size": 11756
+    },
+    "r2_e.wav": {
+      "url": "/audio/r2_e.mp3",
+      "durationMs": 2567,
+      "size": 22124
+    },
+    "r2_f.wav": {
+      "url": "/audio/r2_f.mp3",
+      "durationMs": 3745,
+      "size": 31724
+    },
+    "r2_g.wav": {
+      "url": "/audio/r2_g.mp3",
+      "durationMs": 5302,
+      "size": 44012
+    },
+    "r2_h.wav": {
+      "url": "/audio/r2_h.mp3",
+      "durationMs": 2272,
+      "size": 19820
+    },
+    "r3_ed.mp3": {
+      "url": "/audio/r3_ed.mp3",
+      "durationMs": 43737,
+      "size": 699792
+    },
+    "r4_gf.mp3": {
+      "url": "/audio/r4_gf.mp3",
+      "durationMs": 21585,
+      "size": 345362
+    },
+    "r5_a.wav": {
+      "url": "/audio/r5_a.mp3",
+      "durationMs": 3391,
+      "size": 28673
+    },
+    "r5_pb.mp3": {
+      "url": "/audio/r5_pb.mp3",
+      "durationMs": 20357,
+      "size": 325718
+    },
+    "r6_a.wav": {
+      "url": "/audio/r6_a.mp3",
+      "durationMs": 1094,
+      "size": 10220
+    },
+    "r6_a1.wav": {
+      "url": "/audio/r6_a1.mp3",
+      "durationMs": 3072,
+      "size": 26348
+    },
+    "r6_b.wav": {
+      "url": "/audio/r6_b.mp3",
+      "durationMs": 757,
+      "size": 7532
+    },
+    "r6_mm.mp3": {
+      "url": "/audio/r6_mm.mp3",
+      "durationMs": 23440,
+      "size": 375037
+    },
+    "rise.wav": {
+      "url": "/audio/rise.mp3",
+      "durationMs": 1568468,
+      "size": 15685604
+    },
+    "s0_mas.mp3": {
+      "url": "/audio/s0_mas.mp3",
+      "durationMs": 47917,
+      "size": 766665
+    },
+    "s1_a.wav": {
+      "url": "/audio/s1_a.mp3",
+      "durationMs": 2945,
+      "size": 25196
+    },
+    "s1_a1.wav": {
+      "url": "/audio/s1_a1.mp3",
+      "durationMs": 3829,
+      "size": 32108
+    },
+    "s1_b.wav": {
+      "url": "/audio/s1_b.mp3",
+      "durationMs": 2188,
+      "size": 19052
+    },
+    "s1_c.wav": {
+      "url": "/audio/s1_c.mp3",
+      "durationMs": 1220,
+      "size": 11372
+    },
+    "s1_c1.wav": {
+      "url": "/audio/s1_c1.mp3",
+      "durationMs": 4292,
+      "size": 35948
+    },
+    "s1_d.wav": {
+      "url": "/audio/s1_d.mp3",
+      "durationMs": 2609,
+      "size": 22508
+    },
+    "s1_e.wav": {
+      "url": "/audio/s1_e.mp3",
+      "durationMs": 3240,
+      "size": 27500
+    },
+    "s1_f.wav": {
+      "url": "/audio/s1_f.mp3",
+      "durationMs": 1893,
+      "size": 16748
+    },
+    "s1_g.wav": {
+      "url": "/audio/s1_g.mp3",
+      "durationMs": 3997,
+      "size": 33644
+    },
+    "s1_h.wav": {
+      "url": "/audio/s1_h.mp3",
+      "durationMs": 2950,
+      "size": 25329
+    },
+    "s1_i.wav": {
+      "url": "/audio/s1_i.mp3",
+      "durationMs": 841,
+      "size": 8300
+    },
+    "s1_j.wav": {
+      "url": "/audio/s1_j.mp3",
+      "durationMs": 2272,
+      "size": 19820
+    },
+    "s1_k.wav": {
+      "url": "/audio/s1_k.mp3",
+      "durationMs": 5260,
+      "size": 43628
+    },
+    "s1_l.wav": {
+      "url": "/audio/s1_l.mp3",
+      "durationMs": 2693,
+      "size": 23276
+    },
+    "s1_pf.mp3": {
+      "url": "/audio/s1_pf.mp3",
+      "durationMs": 45148,
+      "size": 722361
+    },
+    "s2_ctg.mp3": {
+      "url": "/audio/s2_ctg.mp3",
+      "durationMs": 40002,
+      "size": 640024
+    },
+    "s2_ctg2.mp3": {
+      "url": "/audio/s2_ctg2.mp3",
+      "durationMs": 40210,
+      "size": 643367
+    },
+    "s3_a.wav": {
+      "url": "/audio/s3_a.mp3",
+      "durationMs": 3324,
+      "size": 28268
+    },
+    "s3_b.wav": {
+      "url": "/audio/s3_b.mp3",
+      "durationMs": 3510,
+      "size": 29927
+    },
+    "s3_rtc.mp3": {
+      "url": "/audio/s3_rtc.mp3",
+      "durationMs": 40106,
+      "size": 641695
+    },
+    "s4_bdba.mp3": {
+      "url": "/audio/s4_bdba.mp3",
+      "durationMs": 17850,
+      "size": 285594
+    },
+    "s4_bdbb.mp3": {
+      "url": "/audio/s4_bdbb.mp3",
+      "durationMs": 16517,
+      "size": 264278
+    },
+    "s4_bdbd.mp3": {
+      "url": "/audio/s4_bdbd.mp3",
+      "durationMs": 33784,
+      "size": 540549
+    },
+    "s5_lrq.mp3": {
+      "url": "/audio/s5_lrq.mp3",
+      "durationMs": 28090,
+      "size": 449434
+    },
+    "s5_lrqb.mp3": {
+      "url": "/audio/s5_lrqb.mp3",
+      "durationMs": 40106,
+      "size": 641695
+    },
+    "s5_lrqc.mp3": {
+      "url": "/audio/s5_lrqc.mp3",
+      "durationMs": 30101,
+      "size": 481617
+    },
+    "subopen.wav": {
+      "url": "/audio/subopen.mp3",
+      "durationMs": 16875,
+      "size": 203567
+    },
+    "t1_tol.mp3": {
+      "url": "/audio/t1_tol.mp3",
+      "durationMs": 33419,
+      "size": 534698
+    },
+    "t2_tpu.mp3": {
+      "url": "/audio/t2_tpu.mp3",
+      "durationMs": 22395,
+      "size": 358319
+    },
+    "t3_a.wav": {
+      "url": "/audio/t3_a.mp3",
+      "durationMs": 547,
+      "size": 5996
+    },
+    "t3_b.wav": {
+      "url": "/audio/t3_b.mp3",
+      "durationMs": 841,
+      "size": 8300
+    },
+    "t3_c.wav": {
+      "url": "/audio/t3_c.mp3",
+      "durationMs": 1010,
+      "size": 9836
+    },
+    "t3_mas.mp3": {
+      "url": "/audio/t3_mas.mp3",
+      "durationMs": 21115,
+      "size": 337839
+    },
+    "t4_a.wav": {
+      "url": "/audio/t4_a.mp3",
+      "durationMs": 3063,
+      "size": 26165
+    },
+    "t4_tat.mp3": {
+      "url": "/audio/t4_tat.mp3",
+      "durationMs": 24720,
+      "size": 395517
+    },
+    "t5_bf.mp3": {
+      "url": "/audio/t5_bf.mp3",
+      "durationMs": 28873,
+      "size": 461973
+    },
+    "water.wav": {
+      "url": "/audio/water.mp3",
+      "durationMs": 632542,
+      "size": 7591580
+    },
+    "yd2_a.wav": {
+      "url": "/audio/yd2_a.mp3",
+      "durationMs": 6480,
+      "size": 53612
+    },
+    "yd2_ass.wav": {
+      "url": "/audio/yd2_ass.mp3",
+      "durationMs": 3198,
+      "size": 27116
+    },
+    "yd2_b.wav": {
+      "url": "/audio/yd2_b.mp3",
+      "durationMs": 4923,
+      "size": 40940
+    },
+    "yd2_c.wav": {
+      "url": "/audio/yd2_c.mp3",
+      "durationMs": 2020,
+      "size": 17900
+    },
+    "yd2_c1.wav": {
+      "url": "/audio/yd2_c1.mp3",
+      "durationMs": 1094,
+      "size": 10220
+    },
+    "yd2_d.wav": {
+      "url": "/audio/yd2_d.mp3",
+      "durationMs": 3114,
+      "size": 26348
+    },
+    "yd2_e.wav": {
+      "url": "/audio/yd2_e.mp3",
+      "durationMs": 2861,
+      "size": 24428
+    },
+    "yd2_f.wav": {
+      "url": "/audio/yd2_f.mp3",
+      "durationMs": 3366,
+      "size": 28652
+    },
+    "yd2_g.wav": {
+      "url": "/audio/yd2_g.mp3",
+      "durationMs": 3030,
+      "size": 25964
+    },
+    "yd2_h.wav": {
+      "url": "/audio/yd2_h.mp3",
+      "durationMs": 4334,
+      "size": 36332
+    },
+    "yd2_ok.wav": {
+      "url": "/audio/yd2_ok.mp3",
+      "durationMs": 5639,
+      "size": 46700
+    },
+    "yd_ph1.mp3": {
+      "url": "/audio/yd_ph1.mp3",
+      "durationMs": 26992,
+      "size": 431880
+    },
+    "yd_ph2.mp3": {
+      "url": "/audio/yd_ph2.mp3",
+      "durationMs": 15629,
+      "size": 250068
+    },
+    "yd_ph3.mp3": {
+      "url": "/audio/yd_ph3.mp3",
+      "durationMs": 21872,
+      "size": 349960
+    },
+    "yd_ph4.mp3": {
+      "url": "/audio/yd_ph4.mp3",
+      "durationMs": 10457,
+      "size": 167312
+    }
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+.local_data/
+engine/build_wasm/
+engine/gamefiles/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

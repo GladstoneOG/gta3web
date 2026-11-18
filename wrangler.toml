@@ -1,0 +1,25 @@
+#:schema node_modules/wrangler/config-schema.json
+# Worker URL : https://gta3web.johansans999.workers.dev
+# GitHub     : https://github.com/GladstoneOG/gta3web
+name = "gta3web"
+main = "cloudflare_worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# Static game assets (HTML, WASM core, chunked VFS packs, streamed MP3 audio)
+# Every file in ./public is <19 MiB to stay well under Cloudflare Workers' 25 MiB per-file limit
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/ws"]
+
+# Durable Object binding for the 4-Player Co-op Relay, WebRTC Signaling & SQLite Persistence
+[durable_objects]
+bindings = [
+  { name = "RELAY_HUB", class_name = "Gta3RelayHub" }
+]
+
+# SQLite-backed Durable Objects (compatible with the Cloudflare Workers Free Plan!)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Gta3RelayHub"]

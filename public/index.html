@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grand Theft Auto III — Liberty Net Edition</title>
+  <style>
+    :root {
+      --bg-black: #060709;
+      --bg-steel: #101216;
+      --bg-panel: #15181e;
+      --bg-inset: #0b0d10;
+      --border-steel: #2e3440;
+      --amber: #e5a93c;
+      --amber-bright: #f8ca68;
+      --amber-dim: rgba(229, 169, 60, 0.16);
+      --pager-bg: #151e12;
+      --pager-lcd: #9db36e;
+      --pager-dim: #667847;
+      --gta-green: #69a85c;
+      --danger: #d1483b;
+      --text-main: #eceae4;
+      --text-muted: #98a0ad;
+      --font-display: 'Impact', 'Haettenschweiler', 'Arial Narrow', 'Bahnschrift', sans-serif;
+      --font-ui: 'Bahnschrift', 'Segoe UI', 'Arial', sans-serif;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-black);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      user-select: none;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* Fullscreen WebGL Canvas */
+    #canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #000;
+      outline: none;
+      cursor: crosshair;
+    }
+
+    /* Shared GTA III Controls */
+    .gta-input,
+    .gta-select {
+      width: 100%;
+      background: var(--bg-inset);
+      color: var(--text-main);
+      border: 1px solid var(--border-steel);
+      padding: 8px 10px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.12s ease;
+    }
+
+    .gta-input:focus,
+    .gta-select:focus {
+      border-color: var(--amber);
+    }
+
+    .gta-btn {
+      background: #1d222b;
+      color: var(--text-main);
+      border: 1px solid #414959;
+      padding: 8px 14px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .gta-btn:hover:not(:disabled) {
+      background: #282f3c;
+      border-color: var(--amber);
+      color: var(--amber-bright);
+    }
+
+    .gta-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .gta-btn.accent {
+      background: var(--amber);
+      color: #0b0c0e;
+      border-color: var(--amber-bright);
+    }
+
+    .gta-btn.accent:hover:not(:disabled) {
+      background: var(--amber-bright);
+      color: #000;
+    }
+
+    .gta-btn.danger {
+      border-color: #6b2b25;
+      color: #f0958d;
+    }
+
+    .gta-btn.danger:hover:not(:disabled) {
+      background: var(--danger);
+      border-color: #ff8175;
+      color: #fff;
+    }
+
+    .gta-btn.active {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+      color: var(--amber-bright);
+    }
+
+    .gta-btn.small {
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .check-row input[type="checkbox"] {
+      accent-color: var(--amber);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    /* ================================================================
+       Boot / Splash Gate
+       ================================================================ */
+    #splash-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(229, 169, 60, 0.14), transparent 46%),
+        radial-gradient(circle at 84% 78%, rgba(105, 168, 92, 0.09), transparent 45%),
+        repeating-linear-gradient(
+          -35deg,
+          #07080a 0px,
+          #07080a 12px,
+          #0a0c0f 12px,
+          #0a0c0f 24px
+        );
+    }
+
+    .splash-frame {
+      width: 100%;
+      max-width: 920px;
+      max-height: 92vh;
+      overflow-y: auto;
+      background: rgba(14, 16, 20, 0.96);
+      border: 2px solid var(--amber);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .splash-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 24px 14px;
+      background: linear-gradient(90deg, #0b0c0f 0%, #191c22 65%, #12151a 100%);
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      line-height: 0.95;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #fff;
+      text-shadow: 2px 2px 0 #000, 0 0 18px rgba(229, 169, 60, 0.25);
+    }
+
+    .brand-title span {
+      color: var(--amber);
+    }
+
+    .brand-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .cache-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border: 1px solid var(--border-steel);
+      background: var(--bg-inset);
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .cache-pill.cached {
+      border-color: var(--gta-green);
+      color: var(--pager-lcd);
+      background: rgba(21, 30, 18, 0.75);
+    }
+
+    .splash-body {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 780px) {
+      .splash-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .dossier-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-steel);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .dossier-heading {
+      font-family: var(--font-display);
+      font-size: 16px;
+      letter-spacing: 0.09em;
+      color: var(--amber);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-steel);
+      padding-bottom: 6px;
+    }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .controls-strip {
+      padding: 10px 12px;
+      background: var(--bg-inset);
+      border-left: 3px solid var(--amber);
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+
+    .controls-strip b {
+      color: var(--amber-bright);
+    }
+
+    .splash-footer {
+      padding: 14px 24px 20px;
+      border-top: 1px solid var(--border-steel);
+      background: rgba(14, 16, 20, 0.98);
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 14px;
+      background: var(--bg-inset);
+      border: 1px solid var(--amber);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--amber) 0px,
+        var(--amber) 10px,
+        #c88d26 10px,
+        #c88d26 20px
+      );
+      transition: width 0.1s linear;
+    }
+
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--pager-lcd);
+    }
+
+    .launch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #boot-launch-btn {
+      min-width: 240px;
+      padding: 12px 24px;
+      font-size: 18px;
+    }
+
+    .error-banner {
+      padding: 10px 12px;
+      background: rgba(209, 72, 59, 0.16);
+      border: 1px solid var(--danger);
+      color: #ffb4ad;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    /* ================================================================
+       Corner Liberty City Pager Widget
+       ================================================================ */
+    #hud-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    #liberty-pager {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 326px;
+      max-width: calc(100vw - 28px);
+      pointer-events: auto;
+      background: linear-gradient(180deg, #1b1e23 0%, #0e1013 100%);
+      border: 2px solid #353b45;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.72);
+      opacity: 1;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    #liberty-pager.pager-idle-hidden {
+      opacity: 0;
+      transform: translate(-50%, -14px);
+      pointer-events: none;
+    }
+
+    .pager-bezel-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
+      background: #0a0c0e;
+      border-bottom: 1px solid #2a2f38;
+    }
+
+    .pager-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: var(--amber);
+    }
+
+    .pager-led {
+      width: 7px;
+      height: 7px;
+      background: var(--gta-green);
+      box-shadow: 0 0 6px var(--gta-green);
+      display: inline-block;
+    }
+
+    .pager-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .pager-mini-btn {
+      background: #1b2028;
+      color: var(--text-main);
+      border: 1px solid #3a4250;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+
+    .pager-mini-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber-bright);
+    }
+
+    .pager-lcd {
+      margin: 6px;
+      padding: 8px;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.18) 0px,
+          rgba(0, 0, 0, 0.18) 1px,
+          transparent 1px,
+          transparent 3px
+        ),
+        var(--pager-bg);
+      border: 2px inset #2b3826;
+      color: var(--pager-lcd);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .pager-status-line {
+      font-weight: 700;
+      border-bottom: 1px dashed var(--pager-dim);
+      padding-bottom: 4px;
+      margin-bottom: 5px;
+      letter-spacing: 0.04em;
+    }
+
+    .pager-peers {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      border-bottom: 1px dashed var(--pager-dim);
+    }
+
+    .pager-peer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .pager-peer-row.self {
+      color: #c5dc92;
+    }
+
+    .badge-p2p {
+      font-style: normal;
+      color: #c6ff80;
+    }
+
+    .badge-relay {
+      font-style: normal;
+      color: #e5a93c;
+    }
+
+    .pager-log {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 68px;
+      overflow: hidden;
+    }
+
+    .pager-msg.accent { color: #d9ee9c; }
+    .pager-msg.warn { color: #ffad7d; }
+    .pager-msg.chat { color: #b7d7ff; }
+    .pager-msg.muted { color: var(--pager-dim); }
+
+    .pager-footer-hints {
+      padding: 4px 8px 6px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .pager-footer-hints b {
+      color: var(--amber);
+    }
+
+    #pointer-hint {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      background: rgba(6, 7, 9, 0.84);
+      border: 1px solid var(--amber);
+      color: var(--amber-bright);
+      padding: 6px 14px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ================================================================
+       5-Tab GTA III Pause Overlay
+       ================================================================ */
+    #pause-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(5, 6, 8, 0.86);
+      backdrop-filter: blur(4px);
+    }
+
+    .pause-shell {
+      width: 100%;
+      max-width: 1060px;
+      height: min(88vh, 740px);
+      display: flex;
+      flex-direction: column;
+      background: rgba(14, 16, 20, 0.97);
+      border: 2px solid var(--amber);
+      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.9);
+    }
+
+    .pause-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      background: #0a0c0e;
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .pause-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .pause-title span {
+      color: var(--amber);
+    }
+
+    .pause-tabs {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      background: #0c0e12;
+      border-bottom: 1px solid var(--border-steel);
+    }
+
+    .gta-tab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      border-right: 1px solid var(--border-steel);
+      padding: 11px 8px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .gta-tab-btn:last-child {
+      border-right: none;
+    }
+
+    .gta-tab-btn:hover {
+      background: #171b22;
+      color: var(--amber-bright);
+    }
+
+    .gta-tab-btn.active {
+      background: var(--amber);
+      color: #090a0c;
+    }
+
+    .pause-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 820px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .pause-tabs { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-steel);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-card h3 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--amber);
+      border-bottom: 1px solid var(--border-steel);
+      padding-bottom: 5px;
+    }
+
+    .row-flex {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .row-flex > .grow {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .list-scroll {
+      max-height: 210px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .room-row,
+    .save-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--bg-inset);
+      border: 1px solid #262b35;
+    }
+
+    .room-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .empty-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 10px;
+      background: var(--bg-inset);
+      border: 1px dashed var(--border-steel);
+    }
+
+    .roster-card {
+      padding: 8px 10px;
+      background: var(--bg-inset);
+      border: 1px solid #29303b;
+    }
+
+    .roster-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .slot-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--amber-dim);
+      color: var(--amber-bright);
+      padding: 1px 6px;
+      border: 1px solid var(--amber);
+    }
+
+    .transport-pill {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 6px;
+      background: #1c2028;
+      color: var(--amber);
+      border: 1px solid #353c4a;
+    }
+
+    .transport-pill.p2p {
+      color: var(--pager-lcd);
+      border-color: var(--gta-green);
+      background: rgba(21, 30, 18, 0.8);
+    }
+
+    .roster-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .roster-meta b {
+      color: var(--text-main);
+    }
+
+    .chat-box {
+      height: 150px;
+      overflow-y: auto;
+      background: var(--bg-inset);
+      border: 1px solid #282e38;
+      padding: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chat-line span { color: var(--text-muted); }
+    .chat-line.accent { color: var(--amber-bright); }
+    .chat-line.warn { color: #ff9c8f; }
+    .chat-line.chat { color: #b7d7ff; }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 7px;
+    }
+
+    .status-line {
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--gta-green);
+      background: rgba(21, 30, 18, 0.65);
+      color: var(--pager-lcd);
+    }
+
+    .status-line.err {
+      border-color: var(--danger);
+      background: rgba(209, 72, 59, 0.16);
+      color: #ffb2aa;
+    }
+
+    .readonly-dim {
+      opacity: 0.72;
+    }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 54px;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .range-row input[type="range"] {
+      accent-color: var(--amber);
+      width: 100%;
+    }
+
+    .range-val {
+      font-family: var(--font-mono);
+      text-align: right;
+      color: var(--amber-bright);
+    }
+
+    .id-badge-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      background: var(--bg-inset);
+      border: 1px solid var(--amber);
+    }
+
+    .id-avatar {
+      width: 58px;
+      height: 58px;
+      background: radial-gradient(circle at 35% 30%, #2a303b, #0c0e12);
+      border: 2px solid var(--amber);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: 24px;
+      color: var(--amber);
+    }
+
+    .save-card-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="1280" height="720" tabindex="0"></canvas>
+
+  <!-- ===================================================================
+       BOOT / SPLASH GATE
+       =================================================================== -->
+  <div id="splash-gate">
+    <div class="splash-frame">
+      <div class="splash-banner">
+        <div>
+          <div class="brand-title">GRAND THEFT AUTO <span>III</span></div>
+          <div class="brand-sub">Liberty Net Edition • 4-Player WebRTC Co-op + Cloud Safehouse</div>
+        </div>
+        <div id="boot-cache-tag" class="cache-pill">CHECKING BROWSER VFS CACHE...</div>
+      </div>
+
+      <div class="splash-body">
+        <div class="dossier-box">
+          <div class="dossier-heading">1. Session &amp; Identity</div>
+
+          <div>
+            <span class="field-label">Connection Mode</span>
+            <div class="mode-switch">
+              <button type="button" class="gta-btn active" data-boot-mode="offline">Play Offline</button>
+              <button type="button" class="gta-btn" data-boot-mode="host">Host Co-op</button>
+              <button type="button" class="gta-btn" data-boot-mode="client">Join Co-op</button>
+            </div>
+          </div>
+
+          <div class="row-flex">
+            <div class="grow">
+              <label class="field-label" for="boot-player-name">Display Name</label>
+              <input id="boot-player-name" class="gta-input" type="text" maxlength="24" value="Claude" />
+            </div>
+          </div>
+
+          <div>
+            <label class="field-label" for="boot-skin-select">Character Model</label>
+            <select id="boot-skin-select" class="gta-select"></select>
+          </div>
+
+          <label class="check-row">
+            <input id="boot-load-cuts" type="checkbox" />
+            <span>Include Cutscene Pack (<code>anim/cuts.img</code>, ~31.8 MiB) on boot</span>
+          </label>
+
+          <div class="controls-strip">
+            <b>Controls:</b> <b>WASD</b> Move / Drive • <b>Mouse</b> Aim &amp; Look • <b>F</b> Enter/Exit Driver Seat •
+            <b>G</b> Enter Nearest Vehicle as <b>Passenger</b> • <b>Tab / F1 / F9</b> Liberty Net Menu
+          </div>
+        </div>
+
+        <div class="dossier-box">
+          <div class="dossier-heading">2. Liberty Net Co-op Setup</div>
+
+          <div id="boot-port-wrap" hidden>
+            <label class="field-label" for="boot-room-port">Room Port (1024 - 65535)</label>
+            <input id="boot-room-port" class="gta-input" type="number" min="1024" max="65535" value="7777" />
+          </div>
+
+          <div id="boot-host-fields" hidden>
+            <div style="margin-bottom: 10px;">
+              <label class="field-label" for="boot-room-name">Room Title</label>
+              <input id="boot-room-name" class="gta-input" type="text" maxlength="48" value="Liberty City Co-op" />
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label class="field-label" for="boot-coop-mode">Game Mode</label>
+              <select id="boot-coop-mode" class="gta-select">
+                <option value="story_coop">Story Co-op (Shared Missions)</option>
+                <option value="open_sandbox">Open Sandbox (Free Roam)</option>
+              </select>
+            </div>
+            <label class="check-row">
+              <input id="boot-open-islands" type="checkbox" />
+              <span>Open All Islands (Portland, Staunton &amp; Shoreside bridges unlocked)</span>
+            </label>
+          </div>
+
+          <div id="boot-rooms-box" hidden>
+            <div class="row-flex" style="justify-content: space-between;">
+              <span class="field-label" style="margin:0;">Active Liberty Net Rooms</span>
+              <button id="boot-refresh-rooms" type="button" class="gta-btn small">Refresh</button>
+            </div>
+            <div id="boot-rooms-list" class="list-scroll"></div>
+          </div>
+
+          <div class="controls-strip" style="margin-top: auto;">
+            <b>Offline &amp; Live Switching:</b> You can start offline immediately and open or join a 4-player WebRTC co-op room anytime from the <b>[TAB]</b> Liberty Net menu.
+          </div>
+        </div>
+      </div>
+
+      <div class="splash-footer">
+        <div id="boot-error" class="error-banner" hidden></div>
+
+        <div id="boot-progress-wrap" hidden>
+          <div class="progress-row" style="margin-bottom: 5px;">
+            <span id="boot-progress-text">Preparing...</span>
+            <span id="boot-progress-meta">0%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div id="boot-progress-fill" class="progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="launch-row">
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Assets verify via SHA-256 &amp; persist in browser IndexedDB (<code>gta3web_vfs_v1</code>).
+          </div>
+          <button id="boot-launch-btn" type="button" class="gta-btn accent">LAUNCH LIBERTY CITY</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       IN-GAME HUD + CORNER LIBERTY CITY PAGER
+       =================================================================== -->
+  <div id="hud-layer" hidden>
+    <aside id="liberty-pager">
+      <div class="pager-bezel-top">
+        <div class="pager-brand">
+          <span class="pager-led"></span>
+          <span>LIBERTY PAGER</span>
+        </div>
+        <div class="pager-actions">
+          <button id="pager-menu-btn" type="button" class="pager-mini-btn">[MENU]</button>
+          <button id="pager-minimize-btn" type="button" class="pager-mini-btn">[-]</button>
+        </div>
+      </div>
+      <div id="pager-body">
+        <div class="pager-lcd">
+          <div id="pager-room-status" class="pager-status-line">OFFLINE</div>
+          <div id="pager-peers" class="pager-peers"></div>
+          <div id="pager-log" class="pager-log"></div>
+        </div>
+      </div>
+      <div class="pager-footer-hints">
+        <span><b>[TAB]</b> Menu / Cheats</span>
+        <span><b>[G]</b> Passenger Seat</span>
+      </div>
+    </aside>
+
+    <div id="pointer-hint" hidden>
+      CLICK GAME VIEW TO AIM • [TAB] / [F1] / [F9] LIBERTY NET MENU
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       5-TAB GTA III PAUSE OVERLAY (NEVER PAUSES MULTIPLAYER WORLD)
+       =================================================================== -->
+  <div id="pause-overlay" hidden>
+    <div class="pause-shell">
+      <div class="pause-header">
+        <div class="pause-title">GRAND THEFT AUTO <span>III</span> // PAUSE MENU</div>
+        <button id="pause-resume-btn" type="button" class="gta-btn accent">RESUME GAME</button>
+      </div>
+
+      <nav class="pause-tabs">
+        <button type="button" class="gta-tab-btn active" data-tab="liberty-net">1. Liberty Net</button>
+        <button type="button" class="gta-tab-btn" data-tab="identity">2. Identity &amp; Skin</button>
+        <button type="button" class="gta-tab-btn" data-tab="safehouse">3. Safehouse Saves</button>
+        <button type="button" class="gta-tab-btn" data-tab="cheats">4. Cheats &amp; Spawner</button>
+        <button type="button" class="gta-tab-btn" data-tab="options">5. Engine Options</button>
+      </nav>
+
+      <div class="pause-content">
+        <!-- TAB 1: LIBERTY NET -->
+        <section class="gta-tab-panel" data-tab-panel="liberty-net">
+          <div class="grid-2">
+            <div class="panel-card">
+              <h3>Room Control</h3>
+              <div class="row-flex" style="justify-content: space-between;">
+                <span id="net-connection-badge" class="slot-tag">OFFLINE</span>
+                <button id="net-leave-btn" type="button" class="gta-btn danger small">Disconnect</button>
+              </div>
+              <div class="row-flex">
+                <div class="grow">
+                  <label class="field-label" for="net-room-name">Room Name</label>
+                  <input id="net-room-name" class="gta-input" type="text" maxlength="48" />
+                </div>
+                <div style="width: 110px;">
+                  <label class="field-label" for="net-room-port">Port</label>
+                  <input id="net-room-port" class="gta-input" type="number" min="1024" max="65535" value="7777" />
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="net-coop-mode">Co-op Mode</label>
+                <select id="net-coop-mode" class="gta-select">
+                  <option value="story_coop">Story Co-op</option>
+                  <option value="open_sandbox">Open Sandbox</option>
+                </select>
+              </div>
+              <div class="row-flex">
+                <button id="net-host-btn" type="button" class="gta-btn accent">Host Room</button>
+                <button id="net-join-btn" type="button" class="gta-btn">Join Port</button>
+              </div>
+
+              <div id="net-host-only-controls">
+                <label class="check-row">
+                  <input id="net-open-islands-toggle" type="checkbox" />
+                  <span>Host Unlock: Open All Islands &amp; Bridges</span>
+                </label>
+              </div>
+
+              <div class="controls-strip">
+                <b>Co-op Vehicle Controls:</b> Press <b>[F]</b> for Driver Seat, or press <b>[G]</b> near any teammate's car to ride as <b>Passenger</b> (aim &amp; fire drive-by!).
+              </div>
+
+              <div class="row-flex" style="justify-content: space-between; margin-top: 4px;">
+                <span class="field-label" style="margin:0;">Public Rooms (/api/rooms)</span>
+                <button id="net-refresh-rooms-btn" type="button" class="gta-btn small">Refresh</button>
+              </div>
+              <div id="net-rooms-list" class="list-scroll"></div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Active Crew Roster &amp; Pager Chat</h3>
+              <div id="net-peer-roster" class="list-scroll" style="max-height: 230px;"></div>
+
+              <span class="field-label" style="margin-top: 6px;">Liberty Pager Feed</span>
+              <div id="net-chat-log" class="chat-box"></div>
+              <form id="net-chat-form" class="row-flex">
+                <input id="net-chat-input" class="gta-input grow" type="text" maxlength="140" placeholder="Send pager message to room..." />
+                <button type="submit" class="gta-btn accent small">Send</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: IDENTITY & SKIN -->
+        <section class="gta-tab-panel" data-tab-panel="identity" hidden>
+          <div class="grid-2">
+            <div class="panel-card">
+              <h3>Customize Liberty City Identity</h3>
+              <div>
+                <label class="field-label" for="id-player-name">Display Name</label>
+                <input id="id-player-name" class="gta-input" type="text" maxlength="24" />
+              </div>
+              <div>
+                <label class="field-label" for="id-skin-select">Character Model (Ped ID 0..89)</label>
+                <select id="id-skin-select" class="gta-select"></select>
+              </div>
+              <button id="id-apply-btn" type="button" class="gta-btn accent">Apply Identity Live</button>
+            </div>
+
+            <div class="panel-card">
+              <h3>Live Preview</h3>
+              <div class="id-badge-card">
+                <div class="id-avatar">III</div>
+                <div>
+                  <div id="id-preview-name" style="font-family: var(--font-display); font-size: 20px; color: #fff;">Claude</div>
+                  <div id="id-preview-meta" class="room-sub">Claude (ID 0)</div>
+                </div>
+              </div>
+              <div class="controls-strip">
+                Applying updates your local ped model immediately via <code>_mp_exec_cheat(22, modelId)</code> and broadcasts your Display Name &amp; Skin across the Liberty Net co-op room.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: SAFEHOUSE SAVES -->
+        <section class="gta-tab-panel" data-tab-panel="safehouse" hidden>
+          <div class="grid-2">
+            <div class="panel-card">
+              <h3>Liberty Net Cloud Account</h3>
+              <div id="auth-logged-out">
+                <div style="margin-bottom: 8px;">
+                  <label class="field-label" for="auth-username">Username</label>
+                  <input id="auth-username" class="gta-input" type="text" maxlength="24" placeholder="3-24 chars" />
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <label class="field-label" for="auth-password">Password</label>
+                  <input id="auth-password" class="gta-input" type="password" maxlength="128" placeholder="4+ chars" />
+                </div>
+                <div class="row-flex">
+                  <button id="auth-login-btn" type="button" class="gta-btn accent">Sign In</button>
+                  <button id="auth-register-btn" type="button" class="gta-btn">Register</button>
+                </div>
+              </div>
+
+              <div id="auth-logged-in" hidden>
+                <div class="row-flex" style="justify-content: space-between;">
+                  <span>Signed in as <strong id="auth-user-label" style="color: var(--amber-bright);"></strong></span>
+                  <button id="auth-logout-btn" type="button" class="gta-btn danger small">Sign Out</button>
+                </div>
+              </div>
+
+              <div id="saves-status" class="status-line" hidden></div>
+
+              <h3 style="margin-top: 8px;">Save Current World State</h3>
+              <div class="row-flex">
+                <input id="save-campaign-title" class="gta-input grow" type="text" maxlength="64" placeholder="Safehouse Campaign Title..." />
+                <button id="save-new-campaign-btn" type="button" class="gta-btn accent">Save New</button>
+              </div>
+
+              <h3 style="margin-top: 8px;">Session &amp; World Reset</h3>
+              <div class="row-flex">
+                <button id="world-new-game-btn" type="button" class="gta-btn">New Liberty City Game</button>
+                <button id="world-restart-btn" type="button" class="gta-btn danger">Restart Session</button>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Cloud Safehouse Campaigns (SQLite)</h3>
+              <div id="cloud-saves-list" class="list-scroll" style="max-height: 360px;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: CHEATS & SPAWNER -->
+        <section class="gta-tab-panel" data-tab-panel="cheats" hidden>
+          <div id="cheats-authority-note" class="error-banner" style="margin-bottom: 12px;" hidden>
+            READ-ONLY: You are connected as a Client. Only the Room Host can execute world cheats and spawners.
+          </div>
+
+          <div id="cheats-controls-wrap" class="grid-2">
+            <div class="panel-card">
+              <h3>Player &amp; Vehicle Cheats</h3>
+              <div class="btn-grid">
+                <button type="button" class="gta-btn" data-cheat-id="1">Full Health + Fix</button>
+                <button type="button" class="gta-btn" data-cheat-id="2">Full Body Armor</button>
+                <button type="button" class="gta-btn" data-cheat-id="3">+$250,000 Cash</button>
+                <button type="button" class="gta-btn" data-cheat-id="4">All Weapons</button>
+                <button type="button" class="gta-btn" data-cheat-id="5">Wanted Level +</button>
+                <button type="button" class="gta-btn" data-cheat-id="6">Clear Wanted</button>
+                <button type="button" class="gta-btn" data-cheat-id="19">Fix Current Car</button>
+                <button type="button" class="gta-btn" data-cheat-id="20">Flip &amp; Boost Car</button>
+                <button type="button" class="gta-btn accent" data-cheat-id="7">Spawn Rhino Tank</button>
+                <button type="button" class="gta-btn" data-cheat-id="21">Spawn RC Bandit</button>
+                <button type="button" class="gta-btn danger" data-cheat-id="8">Blow Up All Cars</button>
+              </div>
+
+              <h3 style="margin-top: 6px;">Vehicle Spawner (60 Models)</h3>
+              <div class="row-flex">
+                <select id="spawn-vehicle-select" class="gta-select grow"></select>
+                <input id="spawn-vehicle-dist" class="gta-input" type="number" min="3" max="20" value="6" style="width: 72px;" title="Ahead distance (meters)" />
+                <button id="spawn-vehicle-btn" type="button" class="gta-btn accent">Spawn</button>
+              </div>
+
+              <h3 style="margin-top: 6px;">Pickup Spawner</h3>
+              <div class="btn-grid">
+                <button type="button" class="gta-btn small" data-pickup-kind="1" data-pickup-arg="0">Health Pickup</button>
+                <button type="button" class="gta-btn small" data-pickup-kind="2" data-pickup-arg="0">Armor Pickup</button>
+                <button type="button" class="gta-btn small" data-pickup-kind="3" data-pickup-arg="5000">$5,000 Cash</button>
+                <button type="button" class="gta-btn small" data-pickup-kind="4" data-pickup-arg="0">Police Bribe</button>
+                <button type="button" class="gta-btn small" data-pickup-kind="5" data-pickup-arg="0">Adrenaline Pill</button>
+              </div>
+              <div class="row-flex">
+                <select id="spawn-weapon-select" class="gta-select grow"></select>
+                <button id="spawn-weapon-pickup-btn" type="button" class="gta-btn small">Drop Weapon</button>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Weather &amp; Time Scale</h3>
+              <div class="btn-grid">
+                <button type="button" class="gta-btn small" data-cheat-id="9" data-cheat-p1="0">Sunny</button>
+                <button type="button" class="gta-btn small" data-cheat-id="9" data-cheat-p1="1">Cloudy</button>
+                <button type="button" class="gta-btn small" data-cheat-id="9" data-cheat-p1="2">Rainy</button>
+                <button type="button" class="gta-btn small" data-cheat-id="9" data-cheat-p1="3">Foggy</button>
+                <button type="button" class="gta-btn small" data-cheat-id="10" data-cheat-p1="0">Time 1.0x</button>
+                <button type="button" class="gta-btn small" data-cheat-id="10" data-cheat-p1="1">Fast 2.0x</button>
+                <button type="button" class="gta-btn small" data-cheat-id="10" data-cheat-p1="2">Slow 0.5x</button>
+              </div>
+
+              <h3 style="margin-top: 8px;">World Chaos &amp; Physics Toggles</h3>
+              <div class="btn-grid">
+                <button type="button" class="gta-btn small" data-cheat-id="11" data-cheat-toggle="1">Fast Weather</button>
+                <button type="button" class="gta-btn small" data-cheat-id="12" data-cheat-toggle="1">Ped Mayhem</button>
+                <button type="button" class="gta-btn small" data-cheat-id="13" data-cheat-toggle="1">Everyone Attacks</button>
+                <button type="button" class="gta-btn small" data-cheat-id="14" data-cheat-toggle="1">Peds Have Weapons</button>
+                <button type="button" class="gta-btn small" data-cheat-id="16" data-cheat-toggle="1">Flying Cars</button>
+                <button type="button" class="gta-btn small" data-cheat-id="15" data-cheat-toggle="1">Wheels Only</button>
+                <button type="button" class="gta-btn small" data-cheat-id="17" data-cheat-toggle="1">Strong Grip</button>
+                <button type="button" class="gta-btn small" data-cheat-id="18" data-cheat-toggle="1">Nasty Limbs / Gore</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: ENGINE OPTIONS -->
+        <section class="gta-tab-panel" data-tab-panel="options" hidden>
+          <div class="grid-2">
+            <div class="panel-card">
+              <h3>Audio &amp; Display (Live CMenuManager)</h3>
+              <div class="range-row">
+                <label for="opt-music-vol">Music Volume</label>
+                <input id="opt-music-vol" type="range" min="0" max="127" value="96" />
+                <span id="opt-music-val" class="range-val">76%</span>
+              </div>
+              <div class="range-row">
+                <label for="opt-sfx-vol">SFX Volume</label>
+                <input id="opt-sfx-vol" type="range" min="0" max="127" value="110" />
+                <span id="opt-sfx-val" class="range-val">87%</span>
+              </div>
+              <div class="range-row">
+                <label for="opt-radio-station">Radio Station</label>
+                <select id="opt-radio-station" class="gta-select"></select>
+                <span></span>
+              </div>
+              <div class="range-row">
+                <label for="opt-brightness">Brightness</label>
+                <input id="opt-brightness" type="range" min="0" max="384" value="256" />
+                <span id="opt-brightness-val" class="range-val">256</span>
+              </div>
+              <div class="range-row">
+                <label for="opt-draw-dist">Draw Distance LOD</label>
+                <input id="opt-draw-dist" type="range" min="0" max="100" value="60" />
+                <span id="opt-draw-val" class="range-val">60</span>
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <h3>Controls, HUD &amp; Browser VFS</h3>
+              <div>
+                <label class="field-label" for="opt-control-method">Control Method</label>
+                <select id="opt-control-method" class="gta-select">
+                  <option value="0">Standard (Mouse + Keyboard)</option>
+                  <option value="1">Classic (GTA III Classic)</option>
+                </select>
+              </div>
+              <label class="check-row"><input id="opt-subtitles" type="checkbox" checked /><span>Subtitles</span></label>
+              <label class="check-row"><input id="opt-widescreen" type="checkbox" checked /><span>Widescreen Aspect</span></label>
+              <label class="check-row"><input id="opt-invert-y" type="checkbox" /><span>Invert Mouse Y</span></label>
+              <label class="check-row"><input id="opt-show-hud" type="checkbox" checked /><span>Show In-Game HUD</span></label>
+
+              <h3 style="margin-top: 8px;">VFS Asset Packs (IndexedDB)</h3>
+              <div class="room-row">
+                <span>Core VFS Pack</span>
+                <span id="opt-core-cache-status" class="transport-pill">--</span>
+              </div>
+              <div class="room-row">
+                <span>Cutscenes (<code>anim/cuts.img</code>)</span>
+                <span id="opt-cuts-cache-status" class="transport-pill">--</span>
+              </div>
+              <div class="row-flex">
+                <button id="opt-load-cuts-btn" type="button" class="gta-btn accent small">Download &amp; Mount Cutscenes</button>
+                <button id="opt-clear-cache-btn" type="button" class="gta-btn danger small">Clear VFS Cache</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="/relay_config.js?v=1"></script>
+  <script src="/asset_loader.js?v=4"></script>
+  <script src="/gta3_ui.js?v=6"></script>
+</body>
+</html>

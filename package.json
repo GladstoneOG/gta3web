@@ -1,0 +1,29 @@
+{
+  "name": "gta3web",
+  "version": "1.0.0",
+  "description": "Grand Theft Auto III Browser Port (re3 WASM) with 4-Player Co-op Relay, WebRTC Signaling, and Cloud Campaign Saves",
+  "homepage": "https://gta3web.johansans999.workers.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GladstoneOG/gta3web.git"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build:assets": "python tools/build_assets.py",
+    "cf:dev": "npx wrangler dev",
+    "cf:deploy": "npx wrangler deploy"
+  },
+  "keywords": [
+    "gta3",
+    "re3",
+    "wasm",
+    "multiplayer",
+    "co-op",
+    "cloudflare-workers",
+    "durable-objects",
+    "webrtc",
+    "sqlite"
+  ],
+  "license": "MIT"
+}
