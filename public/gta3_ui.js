@@ -2544,16 +2544,44 @@
     const launchBtn = document.getElementById('boot-launch-btn');
     if (launchBtn) launchBtn.addEventListener('click', launchGame);
 
-    // Canvas pointer lock click
+    // Canvas pointer lock click & cursor/focus tracking
+    window.__gta3CursorInCanvas = false;
     const canvas = document.getElementById('canvas');
     if (canvas) {
+      canvas.addEventListener('mouseenter', () => {
+        window.__gta3CursorInCanvas = true;
+      });
+      canvas.addEventListener('mousemove', () => {
+        window.__gta3CursorInCanvas = true;
+      });
+      canvas.addEventListener('mouseleave', () => {
+        window.__gta3CursorInCanvas = false;
+      });
+      canvas.addEventListener('mousedown', () => {
+        window.__gta3CursorInCanvas = true;
+        if (window.GtaAudioStream) window.GtaAudioStream.unlock();
+        if (state.booted && !state.menuOpen) {
+          requestCanvasPointerLock();
+        }
+      });
+      canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+      });
       canvas.addEventListener('click', () => {
+        window.__gta3CursorInCanvas = true;
         if (window.GtaAudioStream) window.GtaAudioStream.unlock();
         if (state.booted && !state.menuOpen) {
           requestCanvasPointerLock();
         }
       });
     }
+
+    document.addEventListener('mouseleave', () => {
+      window.__gta3CursorInCanvas = false;
+    });
+    window.addEventListener('blur', () => {
+      window.__gta3CursorInCanvas = false;
+    });
 
     document.addEventListener('pointerlockchange', () => {
       const c = document.getElementById('canvas');

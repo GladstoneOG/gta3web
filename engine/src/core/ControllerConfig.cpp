@@ -344,6 +344,10 @@ void CControllerConfigManager::InitDefaultControlConfigMouse(CMouseControllerSta
 
 		SetMouseButtonAssociatedWithAction(PED_CYCLE_WEAPON_RIGHT,       5);
 
+		SetMouseButtonAssociatedWithAction(PED_SNIPER_ZOOM_IN,           4);
+
+		SetMouseButtonAssociatedWithAction(PED_SNIPER_ZOOM_OUT,          5);
+
 		SetMouseButtonAssociatedWithAction(VEHICLE_CHANGE_RADIO_STATION, 4);
 	}
 }
@@ -2836,6 +2840,9 @@ int32 CControllerConfigManager::GetMouseButtonAssociatedWithAction(e_ControllerA
 
 void CControllerConfigManager::SetMouseButtonAssociatedWithAction(e_ControllerAction action, int32 button)
 {
+	m_aSettings[action][MOUSE].m_Key = 0;
+	m_aSettings[action][MOUSE].m_ContSetOrder = SETORDER_NONE;
+	ResetSettingOrder(action);
 	int numOfSettings = GetNumOfSettingsForAction(action);
 	
 	m_aSettings[action][MOUSE].m_Key = button;

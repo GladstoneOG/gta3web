@@ -40,6 +40,10 @@
 #include "libpad.h"
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 CPad Pads[MAX_PADS];
 #ifdef GTA_PS2
 u_long128 pad_dma_buf[scePadDmaBufferMax] __attribute__((aligned(64)));
@@ -487,6 +491,8 @@ void CMouseControllerState::Clear()
 	WHEELDN = 0;
 	MXB1 = 0;
 	MXB2 = 0;
+	x = 0.0f;
+	y = 0.0f;
 }
 
 CMouseControllerState CMousePointerStateHelper::GetMouseSetUp()
@@ -527,17 +533,11 @@ CMouseControllerState CMousePointerStateHelper::GetMouseSetUp()
 		}
 	}
 #else
-	// It seems there is no way to get number of buttons on mouse, so assign all buttons if we have mouse.
-	double xpos = 1.0f, ypos;
-	glfwGetCursorPos(PSGLOBAL(window), &xpos, &ypos);
-
-	if (xpos != 0.f) {
-		state.MMB = true;
-		state.RMB = true;
-		state.LMB = true;
-		state.WHEELDN = true;
-		state.WHEELUP = true;
-	}
+	state.MMB = true;
+	state.RMB = true;
+	state.LMB = true;
+	state.WHEELDN = true;
+	state.WHEELUP = true;
 #endif
 
 	return state;
@@ -586,12 +586,38 @@ void CPad::UpdateMouse()
 		}
 	}
 #else
-	if ( IsForegroundApp() && PSGLOBAL(cursorIsInWindow) )
+	static bool sWasMouseActive = false;
+	static int sPrevMouseMode = 0;
+#ifdef __EMSCRIPTEN__
+	int mouseMode = EM_ASM_INT({
+		if (typeof document === 'undefined' || document.hidden || !document.hasFocus())
+			return 0;
+		if (window.Gta3UI && window.Gta3UI.state && window.Gta3UI.state.menuOpen)
+			return 0;
+		var c = document.getElementById('canvas');
+		if (c && document.pointerLockElement === c)
+			return 2;
+		if (window.__gta3CursorInCanvas)
+			return 1;
+		return 0;
+	});
+	bool active = IsForegroundApp() && (mouseMode != 0);
+#else
+	int mouseMode = 1;
+	bool active = IsForegroundApp() && PSGLOBAL(cursorIsInWindow);
+#endif
+	if ( active )
 	{
-		double xpos = 1.0f, ypos;
+		double xpos = 0.0, ypos = 0.0;
 		glfwGetCursorPos(PSGLOBAL(window), &xpos, &ypos);
-		if (xpos == 0.f)
-			return;
+
+		if ( !sWasMouseActive || sPrevMouseMode != mouseMode )
+		{
+			PSGLOBAL(lastMousePos.x) = xpos;
+			PSGLOBAL(lastMousePos.y) = ypos;
+			sWasMouseActive = true;
+			sPrevMouseMode = mouseMode;
+		}
 
 		int32 signX = 1;
 		int32 signy = 1;
@@ -606,8 +632,15 @@ void CPad::UpdateMouse()
 
 		PCTempMouseControllerState.Clear();
 
+#ifdef __EMSCRIPTEN__
+		if (mouseMode == 2 || FrontEndMenuManager.m_bMenuActive) {
+			PCTempMouseControllerState.x = (float)(signX * (xpos - PSGLOBAL(lastMousePos.x)));
+			PCTempMouseControllerState.y = (float)(signy * (ypos - PSGLOBAL(lastMousePos.y)));
+		}
+#else
 		PCTempMouseControllerState.x = (float)(signX * (xpos - PSGLOBAL(lastMousePos.x)));
 		PCTempMouseControllerState.y = (float)(signy * (ypos - PSGLOBAL(lastMousePos.y)));
+#endif
 		PCTempMouseControllerState.LMB = glfwGetMouseButton(PSGLOBAL(window), GLFW_MOUSE_BUTTON_LEFT);
 		PCTempMouseControllerState.RMB = glfwGetMouseButton(PSGLOBAL(window), GLFW_MOUSE_BUTTON_RIGHT);
 		PCTempMouseControllerState.MMB = glfwGetMouseButton(PSGLOBAL(window), GLFW_MOUSE_BUTTON_MIDDLE);
@@ -623,6 +656,15 @@ void CPad::UpdateMouse()
 		PSGLOBAL(lastMousePos.y) = ypos;
 		PSGLOBAL(mouseWheel) = 0.0f;
 
+		OldMouseControllerState = NewMouseControllerState;
+		NewMouseControllerState = PCTempMouseControllerState;
+	}
+	else
+	{
+		sWasMouseActive = false;
+		sPrevMouseMode = 0;
+		PSGLOBAL(mouseWheel) = 0.0f;
+		PCTempMouseControllerState.Clear();
 		OldMouseControllerState = NewMouseControllerState;
 		NewMouseControllerState = PCTempMouseControllerState;
 	}

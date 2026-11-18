@@ -2146,6 +2146,9 @@ main(int argc, char *argv[])
 		if (connectedPadButtons != 0)
 			ControlsManager.InitDefaultControlConfigJoyPad(connectedPadButtons); // add (connected-saved) amount of new button assignments on top of ours
 
+		if (ControlsManager.GetControllerKeyAssociatedWithAction(PED_FIREWEAPON, MOUSE) == 0)
+			ControlsManager.InitDefaultControlConfigMouse(MousePointerStateHelper.GetMouseSetUp());
+
 		// these have 2 purposes: creating .ini at the start, and adding newly introduced settings to old .ini at the start
 		SaveINISettings();
 		SaveINIControllerSettings();
