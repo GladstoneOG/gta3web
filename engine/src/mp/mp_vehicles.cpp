@@ -11,6 +11,7 @@
 #include "ModelIndices.h"
 #include "Streaming.h"
 #include "PlayerPed.h"
+#include "CivilianPed.h"
 #include "Ped.h"
 #include "Pad.h"
 #include "Timer.h"
@@ -96,6 +97,37 @@ bool IsPoolVehicleValid(CVehicle *veh)
 	return false;
 }
 
+bool IsPoolPedValidLocal(CPed *ped)
+{
+	if (!ped) return false;
+	CPool<CPed, CPlayerPed> *pool = CPools::GetPedPool();
+	if (!pool) return false;
+	for (int i = 0; i < pool->GetSize(); i++) {
+		if (pool->GetSlot(i) == ped) return true;
+	}
+	return false;
+}
+
+void CleanupEntryNpcDriver(MPVehicleNetEntry &e, CVehicle *veh)
+{
+	if (!e.npcDriverPed) return;
+	CPed *npc = e.npcDriverPed;
+	e.npcDriverPed = nil;
+	if (!IsPoolPedValidLocal(npc)) return;
+	if (npc->bInVehicle && npc->m_pMyVehicle == veh && (!veh || !IsPoolVehicleValid(veh) || veh->pDriver == npc)) {
+		if (veh && IsPoolVehicleValid(veh) && veh->pDriver == npc)
+			veh->RemoveDriver();
+		npc->RemoveInCarAnims();
+		npc->bInVehicle = false;
+		npc->m_pMyVehicle = nil;
+		CWorld::Remove(npc);
+		delete npc;
+	} else {
+		npc->CharCreatedBy = RANDOM_CHAR;
+		npc->bStreamingDontDelete = false;
+	}
+}
+
 } // namespace
 
 MPVehicleNetEntry *CMPManager::FindVehEntry(CVehicle *veh)
@@ -147,9 +179,31 @@ int32 CMPManager::AssignOrGetVehNetId(CVehicle *veh, uint8 ownerPeer)
 
 void CMPManager::CleanupStaleVehicles()
 {
+	CVector focus = FindPlayerCentreOfWorld(CWorld::PlayerInFocus);
 	for (int i = 0; i < MP_MAX_VEH_MAP; i++) {
-		if (vehMap[i].used && !IsPoolVehicleValid(vehMap[i].veh)) {
-			memset(&vehMap[i], 0, sizeof(vehMap[i]));
+		MPVehicleNetEntry &e = vehMap[i];
+		if (!e.used) continue;
+		bool valid = IsPoolVehicleValid(e.veh);
+		bool hostCullDistant = false;
+		if (valid && isHost && e.ownerPeer == (uint8)localPeerId &&
+		    e.veh->VehicleCreatedBy != MISSION_VEHICLE && !e.veh->bHasBeenOwnedByPlayer &&
+		    !IsVehicleOccupiedByPlayer(e.veh)) {
+			if ((e.veh->GetPosition() - focus).MagnitudeSqr2D() > SQR(185.0f) && !IsNearAnyPlayer2D(e.veh->GetPosition(), 185.0f)) {
+				hostCullDistant = true;
+			}
+		}
+		if (!valid || hostCullDistant) {
+			if (active && e.ownerPeer == (uint8)localPeerId && e.netId > 0) {
+				uint8 pkt[32];
+				MPBufWriter w(pkt, sizeof(pkt));
+				w.Write<uint8>(PKT_VEHICLE_SYNC);
+				w.Write<int32>(e.netId);
+				w.Write<int16>(e.modelIndex);
+				w.Write<uint16>(MP_VFLAG_REMOVED);
+				if (w.ok) QueuePacket(1, 0, pkt, w.pos);
+			}
+			CleanupEntryNpcDriver(e, e.veh);
+			memset(&e, 0, sizeof(e));
 		}
 	}
 }
@@ -157,16 +211,18 @@ void CMPManager::CleanupStaleVehicles()
 static bool IsDrivenByRemotePlayer(CVehicle *veh, uint8 &outDriverPeer)
 {
 	outDriverPeer = 0;
-	if (!veh || !veh->pDriver)
+	if (!veh)
 		return false;
-	for (int i = 0; i < MP_MAX_PEERS; i++) {
-		if (gMP.peers[i].active && gMP.peers[i].peerId != gMP.localPeerId && gMP.peers[i].ped == veh->pDriver) {
-			outDriverPeer = (uint8)gMP.peers[i].peerId;
-			return true;
+	if (veh->pDriver) {
+		for (int i = 0; i < MP_MAX_PEERS; i++) {
+			if (gMP.peers[i].active && gMP.peers[i].peerId != gMP.localPeerId && gMP.peers[i].ped == veh->pDriver) {
+				outDriverPeer = (uint8)gMP.peers[i].peerId;
+				return true;
+			}
 		}
 	}
 	MPVehicleNetEntry *e = gMP.FindVehEntry(veh);
-	if (e && e->driverPeer != 0 && e->driverPeer != (uint8)gMP.localPeerId && (CTimer::GetTimeInMilliseconds() - e->lastRxMs) < 2000) {
+	if (e && e->driverPeer != 0 && e->driverPeer != (uint8)gMP.localPeerId && (CTimer::GetTimeInMilliseconds() - e->lastRxMs) < 2500) {
 		outDriverPeer = e->driverPeer;
 		return true;
 	}
@@ -186,9 +242,47 @@ static uint16 CollectVehicleFlags(CVehicle *veh)
 	return f;
 }
 
+static void SendVehicleSyncEntry(MPVehicleNetEntry *entry, CVehicle *veh, CPed *localPed, uint32 nowMs)
+{
+	uint8 pkt[128];
+	MPBufWriter w(pkt, sizeof(pkt));
+	w.Write<uint8>(PKT_VEHICLE_SYNC);
+	w.Write<int32>(entry->netId);
+	w.Write<int16>(veh->GetModelIndex());
+	w.Write<uint16>(CollectVehicleFlags(veh));
+	w.Write<uint8>(entry->driverPeer);
+	w.Write<uint8>(veh->m_currentColour1);
+	w.Write<uint8>(veh->m_currentColour2);
+	uint8 bomb = veh->IsCar() ? (uint8)((CAutomobile *)veh)->m_bombType : 0;
+	w.Write<uint8>(bomb);
+
+	CVector pos = veh->GetPosition();
+	w.Write<float>(pos.x); w.Write<float>(pos.y); w.Write<float>(pos.z);
+
+	float q[4];
+	QuatFromMatrix(veh->GetMatrix(), q);
+	w.Write<float>(q[0]); w.Write<float>(q[1]); w.Write<float>(q[2]); w.Write<float>(q[3]);
+
+	w.Write<float>(veh->m_vecMoveSpeed.x); w.Write<float>(veh->m_vecMoveSpeed.y); w.Write<float>(veh->m_vecMoveSpeed.z);
+	w.Write<float>(veh->m_vecTurnSpeed.x); w.Write<float>(veh->m_vecTurnSpeed.y); w.Write<float>(veh->m_vecTurnSpeed.z);
+	w.Write<float>(veh->m_fSteerAngle);
+	w.Write<float>(veh->m_fGasPedal);
+	w.Write<float>(veh->m_fBrakePedal);
+	w.Write<float>(veh->m_fHealth);
+
+	uint16 npcMi = (veh->pDriver && veh->pDriver != localPed && !gMP.IsRemotePlayerPed(veh->pDriver) && IsPoolPedValidLocal(veh->pDriver))
+		? (uint16)Clamp((int32)veh->pDriver->m_modelIndex, 1, 65535) : 0;
+	w.Write<uint16>(npcMi);
+
+	if (w.ok) {
+		gMP.QueuePacket(0, 0, pkt, w.pos);
+		entry->lastTxMs = nowMs;
+	}
+}
+
 void CMPManager::TickVehiclesAfterGame(uint32 nowMs)
 {
-	if (nowMs - lastVehTxMs < 25) // ~40 Hz for fluid driving/passenger feel
+	if (nowMs - lastVehTxMs < 25)
 		return;
 	lastVehTxMs = nowMs;
 
@@ -198,82 +292,105 @@ void CMPManager::TickVehiclesAfterGame(uint32 nowMs)
 
 	CPool<CVehicle, CAutomobile> *pool = CPools::GetVehiclePool();
 	int sz = pool->GetSize();
+	if (sz <= 0) return;
+
+	bool sentSlot[MP_MAX_VEH_MAP];
+	memset(sentSlot, 0, sizeof(sentSlot));
 	int sentCount = 0;
 
+	// Pass 1: priority pass for driven, moving, or mission vehicles
 	for (int i = 0; i < sz && sentCount < 28; i++) {
 		CVehicle *veh = pool->GetSlot(i);
-		if (!veh)
-			continue;
+		if (!veh) continue;
 
 		bool iAmDriver = (localVeh == veh && veh->pDriver == localPed)
+			|| (localPed && localPed->m_pMyVehicle == veh && (localPed->m_nPedState == PED_ENTER_CAR || localPed->m_nPedState == PED_CARJACK || localPed->m_nPedState == PED_EXIT_CAR) && (localPed->m_objective == OBJECTIVE_ENTER_CAR_AS_DRIVER || veh->pDriver == localPed))
 			|| (CWorld::Players[CWorld::PlayerInFocus].m_pRemoteVehicle == veh);
 		uint8 remoteDriver = 0;
 		bool remoteDriven = IsDrivenByRemotePlayer(veh, remoteDriver);
 
 		MPVehicleNetEntry *entry = FindVehEntry(veh);
 		bool iOwn = false;
-		if (iAmDriver) {
-			iOwn = true;
-		} else if (!remoteDriven) {
+		if (iAmDriver) iOwn = true;
+		else if (!remoteDriven) {
 			if (isHost) {
-				if ((veh->GetPosition() - localPos).MagnitudeSqr2D() <= SQR(135.0f) || veh->VehicleCreatedBy == MISSION_VEHICLE)
-					iOwn = true;
-				else if (IsNearAnyPlayer2D(veh->GetPosition(), 135.0f))
+				if ((veh->GetPosition() - localPos).MagnitudeSqr2D() <= SQR(135.0f) || veh->VehicleCreatedBy == MISSION_VEHICLE || IsNearAnyPlayer2D(veh->GetPosition(), 135.0f))
 					iOwn = true;
 			} else if (entry && entry->ownerPeer == (uint8)localPeerId) {
 				iOwn = true;
 			}
 		}
+		if (!iOwn) continue;
 
-		if (!iOwn)
-			continue;
+		bool priority = iAmDriver || veh->VehicleCreatedBy == MISSION_VEHICLE || veh->m_vecMoveSpeed.MagnitudeSqr() > 0.0001f;
+		if (!priority) continue;
 
 		if (!entry) {
 			int32 nid = AssignOrGetVehNetId(veh, (uint8)localPeerId);
 			entry = FindVehEntryByNetId(nid);
 		}
-		if (!entry)
-			continue;
+		if (!entry) continue;
+		int eIdx = (int)(entry - vehMap);
+		if (eIdx >= 0 && eIdx < MP_MAX_VEH_MAP && sentSlot[eIdx]) continue;
 
 		if (iAmDriver) {
 			entry->ownerPeer = (uint8)localPeerId;
 			entry->driverPeer = (uint8)localPeerId;
-		} else if (entry->driverPeer == (uint8)localPeerId && veh->pDriver != localPed) {
+			entry->releaseOwnerAtMs = nowMs + 1200;
+		} else if (entry->driverPeer == (uint8)localPeerId) {
 			entry->driverPeer = 0;
 		}
 
-		uint8 pkt[128];
-		MPBufWriter w(pkt, sizeof(pkt));
-		w.Write<uint8>(PKT_VEHICLE_SYNC);
-		w.Write<int32>(entry->netId);
-		w.Write<int16>(veh->GetModelIndex());
-		w.Write<uint16>(CollectVehicleFlags(veh));
-		w.Write<uint8>(entry->driverPeer);
-		w.Write<uint8>(veh->m_currentColour1);
-		w.Write<uint8>(veh->m_currentColour2);
-		uint8 bomb = veh->IsCar() ? (uint8)((CAutomobile *)veh)->m_bombType : 0;
-		w.Write<uint8>(bomb);
+		SendVehicleSyncEntry(entry, veh, localPed, nowMs);
+		if (eIdx >= 0 && eIdx < MP_MAX_VEH_MAP) sentSlot[eIdx] = true;
+		sentCount++;
 
-		CVector pos = veh->GetPosition();
-		w.Write<float>(pos.x); w.Write<float>(pos.y); w.Write<float>(pos.z);
-
-		float q[4];
-		QuatFromMatrix(veh->GetMatrix(), q);
-		w.Write<float>(q[0]); w.Write<float>(q[1]); w.Write<float>(q[2]); w.Write<float>(q[3]);
-
-		w.Write<float>(veh->m_vecMoveSpeed.x); w.Write<float>(veh->m_vecMoveSpeed.y); w.Write<float>(veh->m_vecMoveSpeed.z);
-		w.Write<float>(veh->m_vecTurnSpeed.x); w.Write<float>(veh->m_vecTurnSpeed.y); w.Write<float>(veh->m_vecTurnSpeed.z);
-		w.Write<float>(veh->m_fSteerAngle);
-		w.Write<float>(veh->m_fGasPedal);
-		w.Write<float>(veh->m_fBrakePedal);
-		w.Write<float>(veh->m_fHealth);
-
-		if (w.ok) {
-			QueuePacket(0, 0, pkt, w.pos);
-			entry->lastTxMs = nowMs;
-			sentCount++;
+		if (!isHost && !iAmDriver && entry->releaseOwnerAtMs != 0 && nowMs > entry->releaseOwnerAtMs) {
+			entry->ownerPeer = 1;
+			entry->releaseOwnerAtMs = 0;
 		}
 	}
+
+	// Pass 2: round-robin parked/stationary vehicles
+	for (int step = 0; step < sz && sentCount < 28; step++) {
+		int i = (int)((vehScanCursor + (uint32)step) % (uint32)sz);
+		CVehicle *veh = pool->GetSlot(i);
+		if (!veh) continue;
+
+		uint8 remoteDriver = 0;
+		if (IsDrivenByRemotePlayer(veh, remoteDriver)) continue;
+
+		MPVehicleNetEntry *entry = FindVehEntry(veh);
+		bool iOwn = false;
+		if (isHost) {
+			if ((veh->GetPosition() - localPos).MagnitudeSqr2D() <= SQR(135.0f) || veh->VehicleCreatedBy == MISSION_VEHICLE || IsNearAnyPlayer2D(veh->GetPosition(), 135.0f))
+				iOwn = true;
+		} else if (entry && entry->ownerPeer == (uint8)localPeerId) {
+			iOwn = true;
+		}
+		if (!iOwn) continue;
+
+		if (!entry) {
+			int32 nid = AssignOrGetVehNetId(veh, (uint8)localPeerId);
+			entry = FindVehEntryByNetId(nid);
+		}
+		if (!entry) continue;
+		int eIdx = (int)(entry - vehMap);
+		if (eIdx >= 0 && eIdx < MP_MAX_VEH_MAP && sentSlot[eIdx]) continue;
+
+		if (entry->driverPeer == (uint8)localPeerId && veh->pDriver != localPed)
+			entry->driverPeer = 0;
+
+		SendVehicleSyncEntry(entry, veh, localPed, nowMs);
+		if (eIdx >= 0 && eIdx < MP_MAX_VEH_MAP) sentSlot[eIdx] = true;
+		sentCount++;
+
+		if (!isHost && entry->releaseOwnerAtMs != 0 && nowMs > entry->releaseOwnerAtMs) {
+			entry->ownerPeer = 1;
+			entry->releaseOwnerAtMs = 0;
+		}
+	}
+	vehScanCursor = (vehScanCursor + 9) % (uint32)sz;
 }
 
 void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int len)
@@ -282,6 +399,24 @@ void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int 
 	int32 netId = r.Read<int32>();
 	int16 modelIdx = r.Read<int16>();
 	uint16 flags = r.Read<uint16>();
+	if (!r.ok || netId <= 0)
+		return;
+
+	if (flags & MP_VFLAG_REMOVED) {
+		MPVehicleNetEntry *e = FindVehEntryByNetId(netId);
+		if (e) {
+			if (e->veh && IsPoolVehicleValid(e->veh) && !IsVehicleOccupiedByPlayer(e->veh)) {
+				CleanupEntryNpcDriver(*e, e->veh);
+				CWorld::Remove(e->veh);
+				delete e->veh;
+				memset(e, 0, sizeof(*e));
+			} else if (!e->veh) {
+				memset(e, 0, sizeof(*e));
+			}
+		}
+		return;
+	}
+
 	uint8 driverPeer = r.Read<uint8>();
 	uint8 col1 = r.Read<uint8>();
 	uint8 col2 = r.Read<uint8>();
@@ -298,8 +433,9 @@ void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int 
 	float gas = r.Read<float>();
 	float brake = r.Read<float>();
 	float hp = r.Read<float>();
-	if (!r.ok || netId <= 0)
+	if (!r.ok)
 		return;
+	uint16 npcDriverMi = (r.pos + 2 <= len - 1) ? r.Read<uint16>() : 0;
 
 	CPlayerPed *localPed = FindPlayerPed();
 	CVehicle *localDrivenVeh = (localPed && localPed->bInVehicle && localPed->m_pMyVehicle && localPed->m_pMyVehicle->pDriver == localPed)
@@ -315,6 +451,7 @@ void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int 
 		veh = SpawnVehicleLocal(modelIdx, pos, 0.0f, (uint8)fromPeerId);
 		if (!veh)
 			return;
+		veh->VehicleCreatedBy = MISSION_VEHICLE;
 		if (entry) {
 			entry->veh = veh;
 		} else {
@@ -338,13 +475,13 @@ void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int 
 		veh->UpdateRwFrame();
 	}
 
-	// Never overwrite the car if local player is actively driving it!
 	if (veh == localDrivenVeh)
 		return;
 
 	entry->modelIndex = modelIdx;
 	entry->ownerPeer = (uint8)fromPeerId;
 	entry->driverPeer = driverPeer;
+	entry->npcDriverModel = npcDriverMi;
 	entry->lastRxMs = CTimer::GetTimeInMilliseconds();
 	entry->prevPos = veh->GetPosition();
 	QuatFromMatrix(veh->GetMatrix(), entry->prevQuat);
@@ -362,7 +499,6 @@ void CMPManager::HandleVehicleSyncPacket(int fromPeerId, const uint8 *data, int 
 	entry->bombType = bombType;
 	entry->hasTarget = true;
 
-	// Sync paint colors & car bombs cleanly
 	if (veh->m_currentColour1 != col1 || veh->m_currentColour2 != col2) {
 		veh->m_currentColour1 = col1;
 		veh->m_currentColour2 = col2;
@@ -381,37 +517,44 @@ void CMPManager::InterpolateRemoteVehicles(uint32 nowMs)
 
 	for (int i = 0; i < MP_MAX_VEH_MAP; i++) {
 		MPVehicleNetEntry &e = vehMap[i];
-		if (!e.used || !e.hasTarget || !e.veh || !IsPoolVehicleValid(e.veh))
+		if (!e.used || !e.veh || !IsPoolVehicleValid(e.veh))
 			continue;
 		CVehicle *veh = e.veh;
-		if (localVeh == veh && veh->pDriver == localPed)
+		if ((localVeh == veh && veh->pDriver == localPed) || (e.ownerPeer == (uint8)localPeerId && e.driverPeer == (uint8)localPeerId)) {
+			CleanupEntryNpcDriver(e, veh);
 			continue;
-		if (e.ownerPeer == (uint8)localPeerId && e.driverPeer == (uint8)localPeerId)
+		}
+		if (!e.hasTarget)
 			continue;
 
 		uint32 age = nowMs - e.lastRxMs;
-		if (age > 1500) {
+		uint32 expireMs = isHost ? 12000u : 5500u;
+		if (age > expireMs) {
 			e.hasTarget = false;
+			if (!isHost && !IsVehicleOccupiedByPlayer(veh)) {
+				CleanupEntryNpcDriver(e, veh);
+				CWorld::Remove(veh);
+				delete veh;
+				memset(&e, 0, sizeof(e));
+			}
 			continue;
 		}
 
-		// Extrapolate slightly with velocity dead-reckoning for butter-smooth 60 FPS ride
 		float dtExtrap = Min((float)age * 0.001f, 0.12f);
-		CVector predPos = e.targetPos + e.targetVel * (dtExtrap * 50.0f); // m_vecMoveSpeed is per-1/50s game tick!
+		CVector predPos = e.targetPos + e.targetVel * (dtExtrap * 50.0f);
 		CVector curPos = veh->GetPosition();
 		float distSq = (predPos - curPos).MagnitudeSqr();
 
 		if (distSq > SQR(14.0f)) {
 			veh->SetPosition(predPos);
 		} else {
-			float blend = (e.driverPeer != 0) ? 0.42f : 0.28f;
-			CVector smoothPos = curPos + (predPos - curPos) * blend;
-			veh->SetPosition(smoothPos);
+			float blend = (e.driverPeer != 0) ? 0.44f : 0.30f;
+			veh->SetPosition(curPos + (predPos - curPos) * blend);
 		}
 
 		float curQ[4], smoothQ[4];
 		QuatFromMatrix(veh->GetMatrix(), curQ);
-		SlerpQuat(curQ, e.targetQuat, 0.40f, smoothQ);
+		SlerpQuat(curQ, e.targetQuat, 0.42f, smoothQ);
 		MatrixFromQuat(smoothQ, veh->GetMatrix());
 		veh->GetMatrix().UpdateRW();
 		veh->UpdateRwFrame();
@@ -431,7 +574,56 @@ void CMPManager::InterpolateRemoteVehicles(uint32 nowMs)
 		if ((e.targetFlags & MP_VFLAG_WRECKED) && veh->GetStatus() != STATUS_WRECKED)
 			veh->BlowUpCar(nil);
 
-		// Keep any local or remote passengers anchored tightly to the moving seat
+		// Synced visual NPC driver for Host traffic cars
+		bool localInteracting = localPed && localPed->m_pMyVehicle == veh;
+		if (e.npcDriverModel > 0 && e.driverPeer == 0 && !localInteracting && !(e.targetFlags & MP_VFLAG_WRECKED)) {
+			if (e.npcDriverPed && (!IsPoolPedValidLocal(e.npcDriverPed) || !e.npcDriverPed->bInVehicle || veh->pDriver != e.npcDriverPed)) {
+				CleanupEntryNpcDriver(e, veh);
+			}
+			if (!e.npcDriverPed && !veh->pDriver) {
+				int32 npcMi = (int32)e.npcDriverModel;
+				CBaseModelInfo *pmi = (npcMi >= 0 && npcMi <= MI_LAST_PED) ? CModelInfo::GetModelInfo(npcMi) : nil;
+				if (!pmi || pmi->GetModelType() != MITYPE_PED) npcMi = MI_MALE01;
+				CStreaming::RequestModel(npcMi, STREAMFLAGS_DEPENDENCY | STREAMFLAGS_DONT_REMOVE);
+				CStreaming::LoadAllRequestedModels(false);
+				if (CStreaming::ms_aInfoForModel[npcMi].m_loadState == STREAMSTATE_LOADED) {
+					CCivilianPed *npc = new CCivilianPed(PEDTYPE_CIVMALE, (uint32)npcMi);
+					if (npc) {
+						npc->CharCreatedBy = MISSION_CHAR;
+						npc->bRespondsToThreats = false;
+						npc->bStreamingDontDelete = true;
+						npc->bRenderPedInCar = !veh->bIsBus;
+						npc->bUsesCollision = false;
+						npc->SetPosition(veh->GetPosition());
+						CWorld::Add(npc);
+						veh->SetDriver(npc);
+						npc->m_pMyVehicle = veh;
+						npc->bInVehicle = true;
+						npc->bChangedSeat = false;
+						npc->SetPedState(PED_DRIVING);
+						npc->m_pVehicleAnim = CAnimManager::BlendAnimation(npc->GetClump(), ASSOCGRP_STD, veh->GetDriverAnim(), 100.0f);
+						npc->StopNonPartialAnims();
+						npc->RemoveWeaponWhenEnteringVehicle();
+						npc->SetPedPositionInCar();
+						npc->UpdateRwFrame();
+						e.npcDriverPed = npc;
+					}
+				}
+			}
+			if (e.npcDriverPed && IsPoolPedValidLocal(e.npcDriverPed) && e.npcDriverPed->bInVehicle) {
+				e.npcDriverPed->SetPedPositionInCar();
+				e.npcDriverPed->UpdateRwFrame();
+			}
+		} else if (e.npcDriverPed) {
+			if (!localInteracting || (e.npcDriverPed->bInVehicle && e.npcDriverPed->m_pMyVehicle == veh && e.driverPeer != 0)) {
+				CleanupEntryNpcDriver(e, veh);
+			} else if (!e.npcDriverPed->bInVehicle) {
+				e.npcDriverPed->CharCreatedBy = RANDOM_CHAR;
+				e.npcDriverPed->bStreamingDontDelete = false;
+				e.npcDriverPed = nil;
+			}
+		}
+
 		if (localVeh == veh && localPed)
 			localPed->SetPedPositionInCar();
 	}
@@ -441,7 +633,6 @@ static bool FindFreePassengerSeat(CVehicle *veh, int &outSeatIdx, int32 &outDoor
 {
 	if (!veh || veh->IsBoat() || veh->m_vehType == VEHICLE_TYPE_BIKE)
 		return false;
-	// Try front right (0), rear right (2), rear left (1)
 	struct SeatCand { int seat; int32 door; };
 	static const SeatCand cands[3] = {
 		{ 0, CAR_DOOR_RF },
@@ -472,15 +663,13 @@ bool CMPManager::OnLocalEnterVehicleAttempt(CPlayerPed *ped, CVehicle *veh, bool
 		}
 	}
 	MPVehicleNetEntry *entry = FindVehEntry(veh);
-	if (entry && entry->driverPeer != 0 && entry->driverPeer != (uint8)localPeerId && (CTimer::GetTimeInMilliseconds() - entry->lastRxMs) < 2000)
+	if (entry && entry->driverPeer != 0 && entry->driverPeer != (uint8)localPeerId && (CTimer::GetTimeInMilliseconds() - entry->lastRxMs) < 2500)
 		hasRemoteDriver = true;
 
-	// If explicit passenger ('G') OR a teammate is driving ('F'), pick passenger seat!
 	if (forcePassenger || hasRemoteDriver) {
 		int seatIdx = -1;
 		int32 door = CAR_DOOR_RF;
 		if (!FindFreePassengerSeat(veh, seatIdx, door)) {
-			// If a boat with free driver seat and G isn't required, let player board; if full, reject
 			return hasRemoteDriver || forcePassenger;
 		}
 		ped->m_vehDoor = (uint16)door;
@@ -498,12 +687,12 @@ bool CMPManager::OnLocalEnterVehicleAttempt(CPlayerPed *ped, CVehicle *veh, bool
 		return true;
 	}
 
-	// Entering driver seat: claim vehicle netId & inform peers
 	if (active) {
 		int32 nid = AssignOrGetVehNetId(veh, (uint8)localPeerId);
 		if (MPVehicleNetEntry *e = FindVehEntryByNetId(nid)) {
 			e->ownerPeer = (uint8)localPeerId;
 			e->driverPeer = (uint8)localPeerId;
+			e->releaseOwnerAtMs = CTimer::GetTimeInMilliseconds() + 5000;
 		}
 		uint8 pkt[16];
 		MPBufWriter w(pkt, sizeof(pkt));
@@ -556,6 +745,20 @@ void CMPManager::HandleVehicleEnterPacket(int fromPeerId, const uint8 *data, int
 		if (seatIdx == -1) {
 			e->driverPeer = peerId;
 			e->ownerPeer = peerId;
+			if (e->veh && IsPoolVehicleValid(e->veh)) {
+				e->veh->AutoPilot.m_nCarMission = MISSION_NONE;
+				e->veh->SetStatus(STATUS_PHYSICS);
+				CleanupEntryNpcDriver(*e, e->veh);
+				if (e->veh->pDriver && e->veh->pDriver != FindPlayerPed() && !IsRemotePlayerPed(e->veh->pDriver)) {
+					CPed *npc = e->veh->pDriver;
+					e->veh->RemoveDriver();
+					npc->RemoveInCarAnims();
+					npc->bInVehicle = false;
+					npc->m_pMyVehicle = nil;
+					CWorld::Remove(npc);
+					delete npc;
+				}
+			}
 		}
 	}
 }
@@ -595,7 +798,6 @@ void CMPManager::ProcessPassengerDriveBy(CVehicle *veh)
 	if (!isPassenger)
 		return;
 
-	// Ensure player stays locked inside vehicle seat cleanly
 	localPed->SetPedPositionInCar();
 
 	CWeapon *weapon = localPed->GetWeapon();
@@ -605,7 +807,6 @@ void CMPManager::ProcessPassengerDriveBy(CVehicle *veh)
 
 	bool lookLeft = CPad::GetPad(0)->GetLookLeft() || TheCamera.Cams[TheCamera.ActiveCam].LookingLeft;
 	bool lookRight = CPad::GetPad(0)->GetLookRight() || TheCamera.Cams[TheCamera.ActiveCam].LookingRight;
-	// Prefer window on passenger's side when pressing fire without explicit look key
 	bool firePressed = CPad::GetPad(0)->GetCarGunFired() || CPad::GetPad(0)->GetWeapon();
 	if (!lookLeft && !lookRight && firePressed) {
 		if (seatSlot == 0 || seatSlot == 2) lookRight = true;

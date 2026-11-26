@@ -56,6 +56,9 @@
 #include "Renderer.h"
 #include "Replay.h"
 #include "Restart.h"
+#ifdef MULTIPLAYER_COOP
+#include "mp_core.h"
+#endif
 #include "RoadBlocks.h"
 #include "Rubbish.h"
 #include "SceneEdit.h"
@@ -1067,9 +1070,16 @@ void CGame::Process(void)
 		CEventList::Update();
 		CParticle::Update();
 		gFireManager.Update();
+#ifdef MULTIPLAYER_COOP
+		if (!MP_IsClientSession())
+#endif
 		CPopulation::Update();
 		CWeapon::UpdateWeapons();
-		if (!CCutsceneMgr::IsRunning())
+		if (!CCutsceneMgr::IsRunning()
+#ifdef MULTIPLAYER_COOP
+			&& !MP_IsClientSession()
+#endif
+			)
 			CTheCarGenerators::Process();
 		if (!CReplay::IsPlayingBack())
 			CCranes::UpdateCranes();
@@ -1102,7 +1112,11 @@ void CGame::Process(void)
 		CShadows::UpdateStaticShadows();
 		CShadows::UpdatePermanentShadows();
 		gPhoneInfo.Update();
-		if (!CReplay::IsPlayingBack())
+		if (!CReplay::IsPlayingBack()
+#ifdef MULTIPLAYER_COOP
+			&& !MP_IsClientSession()
+#endif
+			)
 		{
 			PUSH_MEMID(MEMID_CARS);
 			CCarCtrl::GenerateRandomCars();

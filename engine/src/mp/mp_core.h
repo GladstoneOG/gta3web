@@ -45,6 +45,8 @@ enum eMpPlayerFlags : uint16 {
 	MP_PFLAG_DRIVEBY_L   = 1 << 6,
 	MP_PFLAG_DRIVEBY_R   = 1 << 7,
 	MP_PFLAG_AIMING      = 1 << 8,
+	MP_PFLAG_ENTERING_VEH = 1 << 9,
+	MP_PFLAG_EXITING_VEH  = 1 << 10,
 };
 
 enum eMpVehicleFlags : uint16 {
@@ -55,6 +57,7 @@ enum eMpVehicleFlags : uint16 {
 	MP_VFLAG_IS_RC       = 1 << 4,
 	MP_VFLAG_IS_MISSION  = 1 << 5,
 	MP_VFLAG_WRECKED     = 1 << 6,
+	MP_VFLAG_REMOVED     = 1 << 7,
 };
 
 enum eMpGarageAction : uint8 {
@@ -87,6 +90,12 @@ struct MPRemotePlayer {
 	uint16 flags;
 	int32 vehNetId;
 	int8 seatIdx; // -1 = driver, 0..3 = passenger, -2 = none
+	uint8 pedState;
+	uint8 vehDoorCode;
+	int16 vehAnimId;
+	float vehAnimTime;
+	int32 lastDoorVehId;
+	uint8 lastDoorCode;
 	uint32 lastRxMs;
 	uint32 lastUpdateMs;
 	CPed *ped;
@@ -96,12 +105,15 @@ struct MPRemotePlayer {
 struct MPVehicleNetEntry {
 	bool used;
 	CVehicle *veh;
+	CPed *npcDriverPed;
 	int32 netId;
 	int16 modelIndex;
+	uint16 npcDriverModel;
 	uint8 ownerPeer;
 	uint8 driverPeer;
 	uint32 lastTxMs;
 	uint32 lastRxMs;
+	uint32 releaseOwnerAtMs;
 	CVector prevPos;
 	CVector targetPos;
 	CVector targetVel;
@@ -125,11 +137,15 @@ struct MPPedNetEntry {
 	int32 netId;
 	uint8 ownerPeer;
 	uint32 lastRxMs;
+	CVector pos;
 	CVector targetPos;
+	CVector targetVel;
+	float heading;
 	float targetHeading;
 	uint8 targetHealth;
 	uint8 targetWeapon;
 	uint8 targetAnim;
+	uint8 targetFlags;
 	bool hasTarget;
 };
 
@@ -196,6 +212,9 @@ public:
 	uint32 lastPedTxMs;
 	uint32 lastWorldTxMs;
 	uint32 lastMissionTxMs;
+	uint32 lastPurgeMs;
+	uint32 vehScanCursor;
+	uint32 pedScanCursor;
 	uint32 spawnFocusIdx;
 	char lastPagerMsg[128];
 
@@ -244,6 +263,8 @@ public:
 	void CleanupStalePeds();
 	void SendLocalPlayerState(uint32 nowMs);
 	void TickRemotePlayers(uint32 nowMs);
+	void TickRemotePlayersAfter(uint32 nowMs);
+	void InterpolateSyncedPeds(uint32 nowMs);
 	void HandlePlayerStatePacket(int fromPeerId, const uint8 *data, int len);
 	void HandlePlayerIdentityPacket(int fromPeerId, const uint8 *data, int len);
 	void HandleShotEventPacket(int fromPeerId, const uint8 *data, int len);
@@ -251,6 +272,10 @@ public:
 	void TickPedsAfterGame(uint32 nowMs);
 	void OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy);
 	bool IsRemotePlayerPed(const CPed *ped) const;
+	bool IsSyncedPed(const CPed *ped) const;
+	bool IsSyncedVehicle(const CVehicle *veh) const;
+	bool IsVehicleOccupiedByPlayer(const CVehicle *veh) const;
+	void PurgeUnsyncedClientEntities();
 	MPRemotePlayer *GetPeerSlot(int peerId);
 
 	// World, Garages, RC, Rampages, Cheats, Pickups (mp_world.cpp)
@@ -295,6 +320,10 @@ void MP_ProcessPassengerDriveBy(CVehicle *veh);
 void MP_OnGarageAction(int garageIdx, uint8 action, CVehicle *veh, uint8 c1, uint8 c2, uint8 bombType);
 void MP_OnRemoteCarEvent(uint8 action, const CVector &pos, float heading, CVehicle *veh);
 void MP_OnPickupEvent(int slot, uint8 action, int mi, uint8 type, int qty, const CVector &pos);
+bool MP_IsClientSession();
+bool MP_IsSyncedVehicle(const CVehicle *veh);
+bool MP_IsSyncedPed(const CPed *ped);
+bool MP_IsVehicleOccupiedByPlayer(const CVehicle *veh);
 bool MP_IsNearAnyPlayer2D(const CVector &pos, float maxDist);
 bool MP_GetSpawnFocusCoors(CVector *outCoors);
 bool MP_IsRemotePlayerPed(const CPed *ped);

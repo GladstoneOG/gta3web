@@ -729,6 +729,12 @@ CCarCtrl::RemoveDistantCars()
 void
 CCarCtrl::PossiblyRemoveVehicle(CVehicle* pVehicle)
 {
+#ifdef MULTIPLAYER_COOP
+	if (MP_IsClientSession())
+		return;
+	if (MP_IsVehicleOccupiedByPlayer(pVehicle) || MP_IsNearAnyPlayer2D(pVehicle->GetPosition(), 130.0f))
+		return;
+#endif
 #ifdef FIX_BUGS
 	if (pVehicle->bIsLocked)
 		return;

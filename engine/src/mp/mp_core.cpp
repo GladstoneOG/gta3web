@@ -63,6 +63,9 @@ CMPManager::CMPManager()
 	lastPedTxMs = 0;
 	lastWorldTxMs = 0;
 	lastMissionTxMs = 0;
+	lastPurgeMs = 0;
+	vehScanCursor = 0;
+	pedScanCursor = 0;
 	spawnFocusIdx = 0;
 	lastPagerMsg[0] = '\0';
 	outHead = 0;
@@ -86,10 +89,19 @@ void CMPManager::Init(int peerId, bool host)
 	nextNetId = (uint32)(localPeerId * 100000 + 1);
 	outHead = 0;
 	outTail = 0;
+	lastPurgeMs = 0;
+	for (int i = 0; i < MP_MAX_PEERS; i++) {
+		peers[i].lastDoorVehId = 0;
+		peers[i].lastDoorCode = 0;
+	}
 	SetUiPauseBlock(true);
 
 	// Ensure all 3 island collisions remain loaded so teammates across islands never fall through ground
 	CMenuManager::m_PrefsIslandLoading = CMenuManager::ISLAND_LOADING_HIGH;
+
+	if (!isHost && CPools::GetVehiclePool() && CPools::GetPedPool()) {
+		PurgeUnsyncedClientEntities();
+	}
 
 	// Broadcast identity right away
 	uint8 pkt[64];
@@ -344,10 +356,15 @@ void CMPManager::TickBeforeGame()
 		return;
 
 	uint32 nowMs = CTimer::GetTimeInMilliseconds();
+	if (!isHost && (nowMs - lastPurgeMs) > 400) {
+		lastPurgeMs = nowMs;
+		PurgeUnsyncedClientEntities();
+	}
 	CleanupStaleVehicles();
 	CleanupStalePeds();
 	TickRemotePlayers(nowMs);
 	InterpolateRemoteVehicles(nowMs);
+	InterpolateSyncedPeds(nowMs);
 }
 
 void CMPManager::TickAfterGame()
@@ -356,6 +373,7 @@ void CMPManager::TickAfterGame()
 		return;
 
 	uint32 nowMs = CTimer::GetTimeInMilliseconds();
+	TickRemotePlayersAfter(nowMs);
 	SendLocalPlayerState(nowMs);
 	TickVehiclesAfterGame(nowMs);
 	TickPedsAfterGame(nowMs);
@@ -427,7 +445,7 @@ bool CMPManager::IsNearAnyPlayer2D(const CVector &pos, float maxDist) const
 		return true;
 	for (int i = 0; i < MP_MAX_PEERS; i++) {
 		const MPRemotePlayer &rp = peers[i];
-		if (rp.active && rp.peerId != localPeerId && rp.ped) {
+		if (rp.active && rp.lastRxMs != 0 && rp.peerId != localPeerId && rp.ped) {
 			if ((pos - rp.ped->GetPosition()).MagnitudeSqr2D() <= maxSq)
 				return true;
 		}
@@ -444,7 +462,7 @@ bool CMPManager::GetSpawnFocusCoors(CVector *outCoors)
 	if (FindPlayerPed())
 		candidates[count++] = FindPlayerCentreOfWorld(CWorld::PlayerInFocus);
 	for (int i = 0; i < MP_MAX_PEERS; i++) {
-		if (peers[i].active && peers[i].peerId != localPeerId && peers[i].ped)
+		if (peers[i].active && peers[i].lastRxMs != 0 && peers[i].peerId != localPeerId && peers[i].ped)
 			candidates[count++] = peers[i].ped->GetPosition();
 	}
 	if (count <= 1)
@@ -452,6 +470,110 @@ bool CMPManager::GetSpawnFocusCoors(CVector *outCoors)
 	*outCoors = candidates[spawnFocusIdx % (uint32)count];
 	spawnFocusIdx++;
 	return true;
+}
+
+bool CMPManager::IsSyncedPed(const CPed *ped) const
+{
+	if (!active || !ped) return false;
+	for (int i = 0; i < MP_MAX_PED_MAP; i++) {
+		if (pedMap[i].used && pedMap[i].ped == ped) return true;
+	}
+	for (int i = 0; i < MP_MAX_VEH_MAP; i++) {
+		if (vehMap[i].used && vehMap[i].npcDriverPed == ped) return true;
+	}
+	return false;
+}
+
+bool CMPManager::IsSyncedVehicle(const CVehicle *veh) const
+{
+	if (!active || !veh) return false;
+	for (int i = 0; i < MP_MAX_VEH_MAP; i++) {
+		if (vehMap[i].used && vehMap[i].veh == veh) return true;
+	}
+	return false;
+}
+
+bool CMPManager::IsVehicleOccupiedByPlayer(const CVehicle *veh) const
+{
+	if (!veh) return false;
+	CPlayerPed *local = FindPlayerPed();
+	if (local && local->m_pMyVehicle == veh) return true;
+	if (!active) return false;
+	for (int i = 0; i < MP_MAX_PEERS; i++) {
+		const MPRemotePlayer &rp = peers[i];
+		if (!rp.active) continue;
+		if (rp.ped && rp.ped->m_pMyVehicle == veh) return true;
+		if (rp.vehNetId > 0) {
+			for (int k = 0; k < MP_MAX_VEH_MAP; k++) {
+				if (vehMap[k].used && vehMap[k].netId == rp.vehNetId && vehMap[k].veh == veh)
+					return true;
+			}
+		}
+	}
+	return false;
+}
+
+void CMPManager::PurgeUnsyncedClientEntities()
+{
+	if (!active || isHost) return;
+	CPool<CVehicle, CAutomobile> *vPool = CPools::GetVehiclePool();
+	CPool<CPed, CPlayerPed> *pPool = CPools::GetPedPool();
+	if (!vPool || !pPool) return;
+
+	bool isFreeRoam = (CTheScripts::ScriptToLoad == 1);
+	CPlayerPed *local = FindPlayerPed();
+	if (vPool) {
+		for (int i = vPool->GetSize() - 1; i >= 0; i--) {
+			CVehicle *v = vPool->GetSlot(i);
+			if (!v) continue;
+			if (v->VehicleCreatedBy != RANDOM_VEHICLE && v->VehicleCreatedBy != PARKED_VEHICLE &&
+			    !(isFreeRoam && v->VehicleCreatedBy == MISSION_VEHICLE))
+				continue;
+			if (IsSyncedVehicle(v) || IsVehicleOccupiedByPlayer(v))
+				continue;
+			if (v->pDriver && v->pDriver != local && !IsRemotePlayerPed(v->pDriver)) {
+				CPed *drv = v->pDriver;
+				v->RemoveDriver();
+				if (!IsSyncedPed(drv)) {
+					CWorld::Remove(drv);
+					CWorld::RemoveReferencesToDeletedObject(drv);
+					delete drv;
+				}
+			}
+			for (int s = 0; s < 4; s++) {
+				CPed *pas = v->pPassengers[s];
+				if (pas && pas != local && !IsRemotePlayerPed(pas)) {
+					v->RemovePassenger(pas);
+					if (!IsSyncedPed(pas)) {
+						CWorld::Remove(pas);
+						CWorld::RemoveReferencesToDeletedObject(pas);
+						delete pas;
+					}
+				}
+			}
+			CWorld::Remove(v);
+			CWorld::RemoveReferencesToDeletedObject(v);
+			delete v;
+		}
+	}
+	if (pPool) {
+		for (int i = pPool->GetSize() - 1; i >= 0; i--) {
+			CPed *p = pPool->GetSlot(i);
+			if (!p || p == local || IsRemotePlayerPed(p) || IsSyncedPed(p))
+				continue;
+			if (p->CharCreatedBy != RANDOM_CHAR)
+				continue;
+			if (p->bInVehicle && p->m_pMyVehicle) {
+				if (p->m_pMyVehicle->pDriver == p) p->m_pMyVehicle->RemoveDriver();
+				else p->m_pMyVehicle->RemovePassenger(p);
+				p->bInVehicle = false;
+				p->m_pMyVehicle = nil;
+			}
+			CWorld::Remove(p);
+			CWorld::RemoveReferencesToDeletedObject(p);
+			delete p;
+		}
+	}
 }
 
 void CMPManager::SetUiPauseBlock(bool block)
@@ -710,6 +832,10 @@ void MP_OnWorldReset() { gMP.OnWorldReset(); }
 void MP_TickBeforeGame() { gMP.TickBeforeGame(); }
 void MP_TickAfterGame() { gMP.TickAfterGame(); }
 void MP_RenderNameTags() { gMP.RenderNameTags(); }
+bool MP_IsClientSession() { return gMP.active && !gMP.isHost; }
+bool MP_IsSyncedVehicle(const CVehicle *veh) { return gMP.IsSyncedVehicle(veh); }
+bool MP_IsSyncedPed(const CPed *ped) { return gMP.IsSyncedPed(ped); }
+bool MP_IsVehicleOccupiedByPlayer(const CVehicle *veh) { return gMP.IsVehicleOccupiedByPlayer(veh); }
 bool MP_IsNearAnyPlayer2D(const CVector &pos, float maxDist) { return gMP.IsNearAnyPlayer2D(pos, maxDist); }
 bool MP_GetSpawnFocusCoors(CVector *outCoors) { return gMP.GetSpawnFocusCoors(outCoors); }
 
