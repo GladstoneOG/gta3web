@@ -20,6 +20,7 @@
 #include "RpAnimBlend.h"
 #include "ModelIndices.h"
 #include "TempColModels.h"
+#include "Script.h"
 
 const struct {
 	const char *szTrackName;
@@ -168,6 +169,15 @@ CCutsceneMgr::Shutdown(void)
 void
 CCutsceneMgr::LoadCutsceneData(const char *szCutsceneName)
 {
+	if (CTheScripts::ScriptToLoad == 1) {
+		strcpy(ms_cutsceneName, szCutsceneName ? szCutsceneName : "");
+		ms_animLoaded = false;
+		ms_loaded = true;
+		ms_cutsceneProcessing = false;
+		ms_cutsceneTimer = 999.0f;
+		return;
+	}
+
 	int file;
 	uint32 size;
 	uint32 offset;

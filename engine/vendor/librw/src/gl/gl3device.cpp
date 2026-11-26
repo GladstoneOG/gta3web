@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
 
 #include "../rwbase.h"
 #include "../rwerror.h"
@@ -1260,6 +1263,9 @@ getFramebufferRect(Raster *frameBuffer)
 	if(fb->type == Raster::CAMERA){
 #ifdef LIBRW_SDL2
 		SDL_GetWindowSize(glGlobals.window, &r.w, &r.h);
+#elif defined(__EMSCRIPTEN__)
+		if(emscripten_get_canvas_element_size("#canvas", &r.w, &r.h) != EMSCRIPTEN_RESULT_SUCCESS || r.w <= 0 || r.h <= 0)
+			glfwGetFramebufferSize(glGlobals.window, &r.w, &r.h);
 #else
 		glfwGetFramebufferSize(glGlobals.window, &r.w, &r.h);
 #endif

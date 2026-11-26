@@ -30,10 +30,12 @@ long _dwOperatingSystemVersion;
 #include <stddef.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten/html5.h>
 #endif
 #endif
 
 #include "common.h"
+#include "Script.h"
 #if (defined(_MSC_VER))
 #include <tchar.h>
 #endif /* (defined(_MSC_VER)) */
@@ -888,12 +890,30 @@ psSelectDevice()
 	}
 #endif
 
+#ifdef __EMSCRIPTEN__
+	GcurSelVM = 0;
+#ifdef IMPROVED_VIDEOMODE
+	if (bestWndMode >= 0)
+		GcurSelVM = bestWndMode;
+	FrontEndMenuManager.m_nPrefsWindowed = 1;
+#endif
+#endif
+
 	RwEngineGetVideoModeInfo(&vm, GcurSelVM);
 
 #ifdef IMPROVED_VIDEOMODE
 	if (FrontEndMenuManager.m_nPrefsWindowed)
 		GcurSelVM = bestWndMode;
 
+#ifdef __EMSCRIPTEN__
+	{
+		int cw = 0, ch = 0;
+		if (emscripten_get_canvas_element_size("#canvas", &cw, &ch) == EMSCRIPTEN_RESULT_SUCCESS && cw > 0 && ch > 0) {
+			vm.width = cw;
+			vm.height = ch;
+		}
+	}
+#endif
 	// Now GcurSelVM is 0 but vm has sizes(and fullscreen flag) of the video mode we want, that's why we changed the rwVIDEOMODEEXCLUSIVE conditions below
 	FrontEndMenuManager.m_nPrefsWidth = vm.width;
 	FrontEndMenuManager.m_nPrefsHeight = vm.height;
@@ -942,6 +962,20 @@ psSelectDevice()
 		RsGlobal.height = FrontEndMenuManager.m_nPrefsHeight;
 		
 		PSGLOBAL(fullScreen) = !FrontEndMenuManager.m_nPrefsWindowed;
+#endif
+#ifdef __EMSCRIPTEN__
+	{
+		int cw = 0, ch = 0;
+		if (emscripten_get_canvas_element_size("#canvas", &cw, &ch) == EMSCRIPTEN_RESULT_SUCCESS && cw > 0 && ch > 0) {
+			RsGlobal.maximumWidth = cw;
+			RsGlobal.maximumHeight = ch;
+			RsGlobal.width = cw;
+			RsGlobal.height = ch;
+			FrontEndMenuManager.m_nPrefsWidth = cw;
+			FrontEndMenuManager.m_nPrefsHeight = ch;
+			PSGLOBAL(fullScreen) = FALSE;
+		}
+	}
 #endif
 
 #ifdef MULTISAMPLING
@@ -1399,6 +1433,10 @@ void resizeCB(GLFWwindow* window, int width, int height) {
 		// TODO fix artifacts of resizing with mouse
 		RsGlobal.maximumHeight = height;
 		RsGlobal.maximumWidth = width;
+		RsGlobal.height = height;
+		RsGlobal.width = width;
+		FrontEndMenuManager.m_nPrefsHeight = height;
+		FrontEndMenuManager.m_nPrefsWidth = width;
 
 		r.x = 0;
 		r.y = 0;
@@ -1914,6 +1952,18 @@ static void EmscriptenMainLoopIteration(void)
 	}
 
 	glfwPollEvents();
+	{
+		int cw = 0, ch = 0, gw = 0, gh = 0;
+		if (PSGLOBAL(window) &&
+		    emscripten_get_canvas_element_size("#canvas", &cw, &ch) == EMSCRIPTEN_RESULT_SUCCESS &&
+		    cw > 0 && ch > 0) {
+			glfwGetFramebufferSize(PSGLOBAL(window), &gw, &gh);
+			if (cw != gw || ch != gh || cw != RsGlobal.maximumWidth || ch != RsGlobal.maximumHeight) {
+				glfwSetWindowSize(PSGLOBAL(window), cw, ch);
+				resizeCB(PSGLOBAL(window), cw, ch);
+			}
+		}
+	}
 	if (ForegroundApp) {
 		switch (gGameState) {
 			case GS_START_UP:
@@ -2042,6 +2092,9 @@ main(int argc, char *argv[])
 #endif
 	for(i=1; i<argc; i++)
 	{
+		if (argv[i] && strcmp(argv[i], "--freeroam") == 0) {
+			CTheScripts::ScriptToLoad = 1;
+		}
 		RsEventHandler(rsPREINITCOMMANDLINE, argv[i]);
 	}
 

@@ -196,10 +196,11 @@ void CMPManager::SetOpenIslands(int open, bool fromNetwork)
 				}
 			}
 		}
-		if (open == 2) {
+		if (open == 2 && CTheScripts::ScriptToLoad != 1) {
 			CTheScripts::ScriptToLoad = 1; // data/main_freeroam.scm
 #ifdef __EMSCRIPTEN__
-			EmscriptenRequestRestart(false);
+			if (gGameState == GS_PLAYING_GAME)
+				EmscriptenRequestRestart(false);
 #endif
 		}
 	}
@@ -492,7 +493,8 @@ void CMPManager::TickWorldAfterGame(uint32 nowMs)
 		uint8 islandFlags = (CStats::IndustrialPassed ? 1 : 0)
 			| (CStats::CommercialPassed ? 2 : 0)
 			| (CStats::SuburbanPassed ? 4 : 0)
-			| (openIslands ? 8 : 0);
+			| (openIslands ? 8 : 0)
+			| (CTheScripts::ScriptToLoad == 1 ? 16 : 0);
 		w.Write<uint8>(islandFlags);
 		if (w.ok) QueuePacket(0, 0, pkt, w.pos);
 	}
@@ -555,7 +557,9 @@ void CMPManager::HandleWorldSyncPacket(int fromPeerId, const uint8 *data, int le
 	CWeather::OldWeatherType = oldW;
 	CWeather::NewWeatherType = newW;
 	CWeather::InterpolationValue = interp;
-	if ((islandFlags & 8) && !openIslands)
+	if ((islandFlags & 16) && CTheScripts::ScriptToLoad != 1)
+		SetOpenIslands(2, true);
+	else if ((islandFlags & 8) && !openIslands)
 		SetOpenIslands(1, true);
 	else {
 		if (islandFlags & 1) CStats::IndustrialPassed = 1;

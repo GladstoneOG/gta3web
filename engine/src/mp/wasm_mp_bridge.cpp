@@ -7,6 +7,7 @@
 #include "Vehicle.h"
 #include "Wanted.h"
 #include "Pad.h"
+#include "Script.h"
 #include "crossplatform.h"
 
 #ifdef __EMSCRIPTEN__
@@ -125,7 +126,11 @@ MP_EXPORT int mp_import_save_state(const uint8 *data, int len)
 
 MP_EXPORT void mp_trigger_restart(int newGame)
 {
-	(void)newGame;
+	if (newGame == 2) {
+		CTheScripts::ScriptToLoad = 1;
+	} else if (newGame == 1) {
+		CTheScripts::ScriptToLoad = 0;
+	}
 	if (gGameState != GS_PLAYING_GAME || CPools::GetPedPool() == nil)
 		return;
 #ifdef __EMSCRIPTEN__

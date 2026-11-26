@@ -575,7 +575,8 @@
     mpSetOpenIslands(open) {
       const mod = wasm.mod;
       if (!mod || typeof mod._mp_set_open_islands !== 'function') return false;
-      mod._mp_set_open_islands(open ? 1 : 0);
+      const modeVal = typeof open === 'number' ? (open | 0) : (open ? (state.coopMode === 'open_sandbox' ? 2 : 1) : 0);
+      mod._mp_set_open_islands(modeVal);
       return true;
     },
 
@@ -1088,8 +1089,8 @@
       }
       if (msg.type === 'world_notice') {
         if (typeof msg.openIslands === 'boolean') {
-          state.openIslands = msg.openIslands;
-          bridge.mpSetOpenIslands(msg.openIslands);
+          state.openIslands = msg.openIslands || state.coopMode === 'open_sandbox';
+          bridge.mpSetOpenIslands(state.coopMode === 'open_sandbox' ? 2 : (state.openIslands ? 1 : 0));
           syncHostTogglesUI();
         }
         if (msg.text) {
@@ -1368,11 +1369,19 @@
       if (info.yourPeerId && !state.isHost) {
         state.localPeerId = info.yourPeerId;
       }
+      if (info.mode && !state.isHost) {
+        state.coopMode = info.mode === 'open_sandbox' ? 'open_sandbox' : 'story_coop';
+        if (state.coopMode === 'open_sandbox') {
+          state.openIslands = true;
+          bridge.mpSetOpenIslands(2);
+          syncHostTogglesUI();
+        }
+      }
       if (typeof info.island_unlocked === 'number' && !state.isHost) {
-        const shouldOpen = info.island_unlocked >= 3;
-        if (state.openIslands !== shouldOpen) {
+        const shouldOpen = state.coopMode === 'open_sandbox' || info.island_unlocked >= 3;
+        if (state.openIslands !== shouldOpen || state.coopMode === 'open_sandbox') {
           state.openIslands = shouldOpen;
-          bridge.mpSetOpenIslands(shouldOpen);
+          bridge.mpSetOpenIslands(state.coopMode === 'open_sandbox' ? 2 : (shouldOpen ? 1 : 0));
           syncHostTogglesUI();
         }
       }
@@ -1771,7 +1780,17 @@
     state.roomName = sanitizeName(roomNameInput ? roomNameInput.value : `${state.localName}'s Liberty City`);
     state.roomPort = clampInt(roomPortInput ? roomPortInput.value : 7777, 1024, 65535, 7777);
     state.coopMode = coopModeSelect ? coopModeSelect.value : 'story_coop';
-    state.openIslands = Boolean(openIslandsCb && openIslandsCb.checked);
+    if (state.mode === 'client') {
+      try {
+        const res = await apiFetch('/api/rooms');
+        const list = Array.isArray(res && res.rooms) ? res.rooms : [];
+        const match = list.find((r) => Number(r.port) === Number(state.roomPort));
+        if (match && match.mode === 'open_sandbox') {
+          state.coopMode = 'open_sandbox';
+        }
+      } catch (_) {}
+    }
+    state.openIslands = Boolean(openIslandsCb && openIslandsCb.checked) || state.coopMode === 'open_sandbox';
     state.loadCutsOnBoot = Boolean(cutsCb && cutsCb.checked);
 
     try {
@@ -1814,6 +1833,7 @@
 
       const moduleConfig = {
         canvas,
+        arguments: state.coopMode === 'open_sandbox' ? ['--freeroam'] : [],
         locateFile(path) {
           return '/' + String(path || '').replace(/^\/+/, '') + `?v=${buildBust}`;
         },
@@ -1868,6 +1888,7 @@
       const instance = await window.createGta3Module(moduleConfig);
       moduleConfig._instance = instance;
       onWasmRuntimeReady(instance);
+      resizeCanvas();
 
       state.booted = true;
       state.booting = false;
@@ -1893,9 +1914,14 @@
           wasm.offlineInited = true;
           bridge.mpInit(1, true);
           bridge.mpSetPlayerInfo(1, state.localName, state.localSkin);
-          bridge.mpSetOpenIslands(state.openIslands);
+          bridge.mpSetOpenIslands(state.coopMode === 'open_sandbox' ? 2 : (state.openIslands ? 1 : 0));
         }
-        addPagerMessage('OFFLINE SESSION: Welcome to Liberty City.', 'accent');
+        addPagerMessage(
+          state.coopMode === 'open_sandbox'
+            ? 'OFFLINE FREE ROAM: All islands open, story cutscenes disabled.'
+            : 'OFFLINE SESSION: Welcome to Liberty City.',
+          'accent'
+        );
       }
 
       startRuntimeLoops();
@@ -1919,7 +1945,7 @@
       wasm.offlineInited = true;
       bridge.mpInit(1, true);
       bridge.mpSetPlayerInfo(1, state.localName, state.localSkin);
-      bridge.mpSetOpenIslands(state.openIslands);
+      bridge.mpSetOpenIslands(state.coopMode === 'open_sandbox' ? 2 : (state.openIslands ? 1 : 0));
     }
 
     syncFrontendSettingsFromEngine();
@@ -1953,7 +1979,7 @@
         if (!wasm.engineLiveSyncDone) {
           wasm.engineLiveSyncDone = true;
           bridge.mpSetPlayerInfo(state.localPeerId, state.localName, state.localSkin);
-          bridge.mpSetOpenIslands(state.openIslands);
+          bridge.mpSetOpenIslands(state.coopMode === 'open_sandbox' ? 2 : (state.openIslands ? 1 : 0));
           syncFrontendSettingsFromEngine();
         }
         renderPager();
@@ -2058,8 +2084,12 @@
     const canvas = document.getElementById('canvas');
     if (!canvas) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.max(640, Math.floor(window.innerWidth * dpr));
-    const h = Math.max(360, Math.floor(window.innerHeight * dpr));
+    const cssW = window.innerWidth || document.documentElement.clientWidth || 1280;
+    const cssH = window.innerHeight || document.documentElement.clientHeight || 720;
+    const w = Math.max(320, Math.floor(cssW * dpr));
+    const h = Math.max(240, Math.floor(cssH * dpr));
+    canvas.style.removeProperty('width');
+    canvas.style.removeProperty('height');
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
@@ -2528,15 +2558,26 @@
         document.querySelectorAll('[data-boot-mode]').forEach((b) => {
           b.classList.toggle('active', b === btn);
         });
+        const modeFields = document.getElementById('boot-mode-fields');
         const hostFields = document.getElementById('boot-host-fields');
         const portWrap = document.getElementById('boot-port-wrap');
         const roomsBox = document.getElementById('boot-rooms-box');
+        if (modeFields) modeFields.hidden = mode === 'client';
         if (hostFields) hostFields.hidden = mode !== 'host';
         if (portWrap) portWrap.hidden = mode === 'offline';
         if (roomsBox) roomsBox.hidden = mode !== 'client';
         if (mode === 'client') refreshRooms();
       });
     });
+
+    const bootCoopMode = document.getElementById('boot-coop-mode');
+    if (bootCoopMode) {
+      bootCoopMode.addEventListener('change', () => {
+        const isFreeRoam = bootCoopMode.value === 'open_sandbox';
+        const openCb = document.getElementById('boot-open-islands');
+        if (openCb && isFreeRoam) openCb.checked = true;
+      });
+    }
 
     const bootRefreshRooms = document.getElementById('boot-refresh-rooms');
     if (bootRefreshRooms) bootRefreshRooms.addEventListener('click', refreshRooms);
@@ -2626,6 +2667,10 @@
     });
 
     window.addEventListener('resize', resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeCanvas);
+    }
+    document.addEventListener('fullscreenchange', resizeCanvas);
 
     // Pager buttons & inactivity auto-hide interaction
     const pagerEl = document.getElementById('liberty-pager');
@@ -2686,6 +2731,12 @@
         const rName = document.getElementById('net-room-name')?.value;
         const rPort = document.getElementById('net-room-port')?.value;
         const rMode = document.getElementById('net-coop-mode')?.value;
+        state.coopMode = rMode === 'open_sandbox' ? 'open_sandbox' : 'story_coop';
+        if (rMode === 'open_sandbox') {
+          state.openIslands = true;
+          bridge.mpSetOpenIslands(2);
+          syncHostTogglesUI();
+        }
         net.connect({
           mode: 'host',
           roomPort: rPort,
