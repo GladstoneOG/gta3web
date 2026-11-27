@@ -32,7 +32,9 @@ enum eMpPacketType : uint8 {
 	PKT_CHAT_OR_PAGER    = 0x0B,
 	PKT_SPAWN_REQ        = 0x0C,
 	PKT_RC_EVENT         = 0x0D,
-	PKT_PICKUP_EVENT     = 0x0E
+	PKT_PICKUP_EVENT     = 0x0E,
+	PKT_DAMAGE_EVENT     = 0x0F,
+	PKT_EXPLOSION_EVENT  = 0x10
 };
 
 enum eMpPlayerFlags : uint16 {
@@ -47,6 +49,7 @@ enum eMpPlayerFlags : uint16 {
 	MP_PFLAG_AIMING      = 1 << 8,
 	MP_PFLAG_ENTERING_VEH = 1 << 9,
 	MP_PFLAG_EXITING_VEH  = 1 << 10,
+	MP_PFLAG_ATTACKING    = 1 << 11
 };
 
 enum eMpVehicleFlags : uint16 {
@@ -58,6 +61,8 @@ enum eMpVehicleFlags : uint16 {
 	MP_VFLAG_IS_MISSION  = 1 << 5,
 	MP_VFLAG_WRECKED     = 1 << 6,
 	MP_VFLAG_REMOVED     = 1 << 7,
+	MP_VFLAG_HANDBRAKE   = 1 << 8,
+	MP_VFLAG_HORN        = 1 << 9
 };
 
 enum eMpGarageAction : uint8 {
@@ -100,6 +105,7 @@ struct MPRemotePlayer {
 	uint32 lastUpdateMs;
 	CPed *ped;
 	int32 radarBlipHandle;
+	int16 lastCombatAnimId;
 };
 
 struct MPVehicleNetEntry {
@@ -146,6 +152,8 @@ struct MPPedNetEntry {
 	uint8 targetWeapon;
 	uint8 targetAnim;
 	uint8 targetFlags;
+	uint8 lastHealth;
+	uint8 prevFlags;
 	bool hasTarget;
 };
 
@@ -268,9 +276,16 @@ public:
 	void HandlePlayerStatePacket(int fromPeerId, const uint8 *data, int len);
 	void HandlePlayerIdentityPacket(int fromPeerId, const uint8 *data, int len);
 	void HandleShotEventPacket(int fromPeerId, const uint8 *data, int len);
+	void HandleDamageEventPacket(int fromPeerId, const uint8 *data, int len);
+	void HandleExplosionEventPacket(int fromPeerId, const uint8 *data, int len);
 	void HandlePedSyncPacket(int fromPeerId, const uint8 *data, int len);
 	void TickPedsAfterGame(uint32 nowMs);
-	void OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy);
+	void OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy, uint8 shotKind = 0, float power = 0.0f);
+	void OnPedDamaged(CPed *victim, CEntity *attacker, eWeaponType method, float damage, int pedPiece, uint8 direction);
+	void OnVehicleDamaged(CVehicle *veh, CEntity *attacker, eWeaponType weapon, float damage);
+	void OnExplosion(CEntity *culprit, int expType, const CVector &pos);
+	int FindPeerIdByPed(const CPed *ped) const;
+	int32 FindSyncedPedNetIdByPtr(const CPed *ped) const;
 	bool IsRemotePlayerPed(const CPed *ped) const;
 	bool IsSyncedPed(const CPed *ped) const;
 	bool IsSyncedVehicle(const CVehicle *veh) const;
@@ -327,7 +342,12 @@ bool MP_IsVehicleOccupiedByPlayer(const CVehicle *veh);
 bool MP_IsNearAnyPlayer2D(const CVector &pos, float maxDist);
 bool MP_GetSpawnFocusCoors(CVector *outCoors);
 bool MP_IsRemotePlayerPed(const CPed *ped);
-void MP_OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy);
+bool MP_IsRemoteControlledVehicle(const CVehicle *veh);
+void MP_OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy, uint8 shotKind = 0, float power = 0.0f);
+void MP_OnPedDamaged(CPed *victim, CEntity *attacker, eWeaponType method, float damage, int pedPiece, uint8 direction);
+void MP_OnVehicleDamaged(CVehicle *veh, CEntity *attacker, eWeaponType weapon, float damage);
+void MP_OnExplosion(CEntity *culprit, int expType, const CVector &pos);
+bool MP_ShouldSuppressExplosionDamage(CEntity *victim, CEntity *attacker, eWeaponType method);
 void MP_OnVehicleDestroyed(CVehicle *veh);
 
 #endif // MULTIPLAYER_COOP

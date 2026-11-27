@@ -22,6 +22,9 @@
 #include "Automobile.h"
 #include "WaterLevel.h"
 #include "World.h"
+#ifdef MULTIPLAYER_COOP
+#include "mp_core.h"
+#endif
 
 uint16 nPlayerInComboMove;
 
@@ -2073,6 +2076,14 @@ CPed::InflictDamage(CEntity *damagedBy, eWeaponType method, float damage, ePedPi
 
 	if (DyingOrDead())
 		return false;
+
+#ifdef MULTIPLAYER_COOP
+	if (MP_ShouldSuppressExplosionDamage(this, damagedBy, method))
+		return false;
+	if (damagedBy == FindPlayerPed() || (FindPlayerVehicle() && damagedBy == FindPlayerVehicle())) {
+		MP_OnPedDamaged(this, damagedBy, method, damage, (int)pedPiece, direction);
+	}
+#endif
 
 	if (!bUsesCollision && method != WEAPONTYPE_DROWNING)
 		return false;

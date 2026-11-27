@@ -18,6 +18,9 @@
 #include "Vehicle.h"
 #include "WaterLevel.h"
 #include "World.h"
+#ifdef MULTIPLAYER_COOP
+#include "mp_core.h"
+#endif
 
 CExplosion gaExplosion[NUM_EXPLOSIONS];
 
@@ -93,6 +96,9 @@ CExplosion::AddExplosion(CEntity *explodingEntity, CEntity *culprit, eExplosionT
 
 	RwRGBA colorMedium = colMedExpl;
 	bool bDontExplode = false;
+#ifdef MULTIPLAYER_COOP
+	MP_OnExplosion(culprit, (int)type, pos);
+#endif
 	const RwRGBA color = { 160, 160, 160, 255 };
 	pPosn = pos;
 	pPosn.z += 5.0f;

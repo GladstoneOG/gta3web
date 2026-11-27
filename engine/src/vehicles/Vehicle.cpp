@@ -19,6 +19,9 @@
 #include "Fire.h"
 #include "Darkel.h"
 #include "SaveBuf.h"
+#ifdef MULTIPLAYER_COOP
+#include "mp_core.h"
+#endif
 
 bool CVehicle::bWheelsOnlyCheat;
 bool CVehicle::bAllDodosCheat;
@@ -615,6 +618,11 @@ CVehicle::InflictDamage(CEntity* damagedBy, eWeaponType weaponType, float damage
 {
 	if (!bCanBeDamaged)
 		return;
+#ifdef MULTIPLAYER_COOP
+	MP_OnVehicleDamaged(this, damagedBy, weaponType, damage);
+	if (MP_IsRemoteControlledVehicle(this))
+		return;
+#endif
 	if (bOnlyDamagedByPlayer && (damagedBy != FindPlayerPed() && damagedBy != FindPlayerVehicle()))
 		return;
 	bool bFrightensDriver = false;

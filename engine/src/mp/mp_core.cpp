@@ -221,6 +221,8 @@ void CMPManager::PushPacket(int fromPeerId, const uint8 *data, int len)
 		case PKT_SPAWN_REQ:       HandleSpawnReqPacket(fromPeerId, data, len); break;
 		case PKT_RC_EVENT:        HandleRcEventPacket(fromPeerId, data, len); break;
 		case PKT_PICKUP_EVENT:    HandlePickupEventPacket(fromPeerId, data, len); break;
+		case PKT_DAMAGE_EVENT:    HandleDamageEventPacket(fromPeerId, data, len); break;
+		case PKT_EXPLOSION_EVENT: HandleExplosionEventPacket(fromPeerId, data, len); break;
 		case PKT_CHAT_OR_PAGER: {
 			MPBufReader r(data + 1, len - 1);
 			uint8 sender = r.Read<uint8>();

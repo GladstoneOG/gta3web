@@ -19,11 +19,14 @@
 #include "Weapon.h"
 #include "WeaponInfo.h"
 #include "Particle.h"
+#include "Explosion.h"
+#include "ProjectileInfo.h"
 #include "DMAudio.h"
 #include "Radar.h"
 #include "Timer.h"
 #include "Pad.h"
 #include "Camera.h"
+#include "General.h"
 #include "soundlist.h"
 #include <math.h>
 
@@ -105,6 +108,57 @@ CAnimBlendAssociation *FindLiveVehAnim(CPed *ped)
 	}
 	return nil;
 }
+
+bool IsLocomotionAnimId(int32 animId)
+{
+	switch (animId) {
+	case ANIM_STD_WALK:
+	case ANIM_STD_RUN:
+	case ANIM_STD_RUNFAST:
+	case ANIM_STD_IDLE:
+	case ANIM_STD_IDLE_BIGGUN:
+	case ANIM_STD_IDLE_HBHB:
+	case ANIM_STD_IDLE_TIRED:
+	case ANIM_STD_RUNSTOP1:
+	case ANIM_STD_RUNSTOP2:
+	case ANIM_STD_JUMP_LAUNCH:
+	case ANIM_STD_JUMP_GLIDE:
+	case ANIM_STD_JUMP_LAND:
+	case ANIM_STD_FALL:
+	case ANIM_STD_FALL_GLIDE:
+	case ANIM_STD_FALL_LAND:
+		return true;
+	default:
+		return false;
+	}
+}
+
+struct MpRecentExplosion3 {
+	CVector pos;
+	uint32 timeMs;
+};
+MpRecentExplosion3 gRecentExplosions3[8];
+int32 gRecentExpCursor3 = 0;
+
+void RecordExplosion3(const CVector &pos, uint32 nowMs)
+{
+	gRecentExplosions3[gRecentExpCursor3].pos = pos;
+	gRecentExplosions3[gRecentExpCursor3].timeMs = nowMs;
+	gRecentExpCursor3 = (gRecentExpCursor3 + 1) % 8;
+}
+
+bool IsDuplicateExplosion3(const CVector &pos, uint32 nowMs)
+{
+	for (int i = 0; i < 8; i++) {
+		if (gRecentExplosions3[i].timeMs != 0 && (nowMs - gRecentExplosions3[i].timeMs) < 450u) {
+			if ((gRecentExplosions3[i].pos - pos).MagnitudeSqr() < SQR(3.0f))
+				return true;
+		}
+	}
+	return false;
+}
+
+bool gMpSuppressExplosion3 = false;
 
 AnimationId ExpectedSeatedAnim(CVehicle *veh, int8 seatIdx)
 {
@@ -254,7 +308,8 @@ void CMPManager::SendLocalPlayerState(uint32 nowMs)
 	if (ped->bIsDucking) flags |= MP_PFLAG_DUCKING;
 	if (ped->m_nPedState == PED_JUMP || ped->bIsInTheAir) flags |= MP_PFLAG_JUMPING;
 	if (ped->DyingOrDead()) flags |= MP_PFLAG_DEAD;
-	if (ped->bIsAimingGun) flags |= MP_PFLAG_AIMING;
+	if (ped->bIsAimingGun || ped->m_nPedState == PED_AIM_GUN) flags |= MP_PFLAG_AIMING;
+	if (ped->m_nPedState == PED_FIGHT || ped->m_nPedState == PED_ATTACK || ped->bIsAttacking || ped->bIsShooting) flags |= MP_PFLAG_ATTACKING;
 
 	CAnimBlendAssociation *va = FindLiveVehAnim(ped);
 	int16 animId = -1;
@@ -262,6 +317,20 @@ void CMPManager::SendLocalPlayerState(uint32 nowMs)
 	if (va && (isEntering || isExiting || (isSeated && IsDoorCloseAnim(va->animId)))) {
 		animId = (int16)va->animId;
 		animTime = va->currentTime;
+	} else if (!isSeated && !isEntering && !isExiting && (flags & (MP_PFLAG_ATTACKING | MP_PFLAG_AIMING | MP_PFLAG_FIRING)) && ped->GetClump()) {
+		CAnimBlendAssociation *best = nil;
+		float bestWeight = 0.05f;
+		for (CAnimBlendAssociation *a = RpAnimBlendClumpGetFirstAssociation(ped->GetClump()); a; a = RpAnimBlendGetNextAssociation(a)) {
+			if (IsLocomotionAnimId(a->animId)) continue;
+			if (a->blendDelta >= 0.0f && a->blendAmount > bestWeight) {
+				bestWeight = a->blendAmount;
+				best = a;
+			}
+		}
+		if (best) {
+			animId = (int16)best->animId;
+			animTime = best->currentTime;
+		}
 	}
 
 	w.Write<uint16>(flags);
@@ -566,6 +635,7 @@ void CMPManager::TickRemotePlayers(uint32 nowMs)
 
 		if (rp.flags & MP_PFLAG_DEAD) {
 			if (ped->m_nPedState != PED_DEAD) ped->SetDead();
+			rp.lastCombatAnimId = -1;
 		} else {
 			if (ped->m_nPedState == PED_DEAD) ped->m_nPedState = PED_IDLE;
 			ped->RestartNonPartialAnims();
@@ -579,6 +649,34 @@ void CMPManager::TickRemotePlayers(uint32 nowMs)
 				CAnimManager::BlendAnimation(ped->GetClump(), ped->m_animGroup, ANIM_STD_WALK, 4.0f);
 			} else {
 				CAnimManager::BlendAnimation(ped->GetClump(), ped->m_animGroup, ANIM_STD_IDLE, 4.0f);
+			}
+			if (rp.vehAnimId >= 0) {
+				if (rp.lastCombatAnimId >= 0 && rp.lastCombatAnimId != rp.vehAnimId) {
+					CAnimBlendAssociation *prev = RpAnimBlendClumpGetAssociation(ped->GetClump(), (uint32)rp.lastCombatAnimId);
+					if (prev) {
+						prev->blendDelta = -8.0f;
+						prev->flags |= ASSOC_DELETEFADEDOUT;
+					}
+				}
+				CAnimBlendAssociation *ca = RpAnimBlendClumpGetAssociation(ped->GetClump(), (uint32)rp.vehAnimId);
+				if (!ca || ca->blendDelta < 0.0f) {
+					ca = CAnimManager::BlendAnimation(ped->GetClump(), ASSOCGRP_STD, (AnimationId)rp.vehAnimId, 8.0f);
+				}
+				if (ca) {
+					ca->callbackType = CAnimBlendAssociation::CB_NONE;
+					ca->SetRun();
+					if (fabsf(ca->currentTime - rp.vehAnimTime) > 0.10f && rp.vehAnimTime >= 0.0f && ca->hierarchy && rp.vehAnimTime <= ca->hierarchy->totalLength) {
+						ca->SetCurrentTime(rp.vehAnimTime);
+					}
+				}
+				rp.lastCombatAnimId = rp.vehAnimId;
+			} else if (rp.lastCombatAnimId >= 0) {
+				CAnimBlendAssociation *prev = RpAnimBlendClumpGetAssociation(ped->GetClump(), (uint32)rp.lastCombatAnimId);
+				if (prev) {
+					prev->blendDelta = -8.0f;
+					prev->flags |= ASSOC_DELETEFADEDOUT;
+				}
+				rp.lastCombatAnimId = -1;
 			}
 		}
 	}
@@ -619,7 +717,27 @@ void CMPManager::TickRemotePlayersAfter(uint32 nowMs)
 	}
 }
 
-void CMPManager::OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy)
+int CMPManager::FindPeerIdByPed(const CPed *ped) const
+{
+	if (!ped) return -1;
+	for (int i = 0; i < MP_MAX_PEERS; i++) {
+		if (peers[i].active && peers[i].ped == ped)
+			return peers[i].peerId;
+	}
+	return -1;
+}
+
+int32 CMPManager::FindSyncedPedNetIdByPtr(const CPed *ped) const
+{
+	if (!ped) return -1;
+	for (int i = 0; i < MP_MAX_PED_MAP; i++) {
+		if (pedMap[i].used && pedMap[i].ped == ped)
+			return pedMap[i].netId;
+	}
+	return -1;
+}
+
+void CMPManager::OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy, uint8 shotKind, float power)
 {
 	if (!active || suppressLocalHooks)
 		return;
@@ -628,7 +746,7 @@ void CMPManager::OnShotFired(eWeaponType weapon, const CVector &origin, const CV
 	w.Write<uint8>(PKT_SHOT_EVENT);
 	w.Write<uint8>((uint8)localPeerId);
 	w.Write<uint8>((uint8)weapon);
-	w.Write<uint8>(isDriveBy ? 1 : 0);
+	w.Write<uint8>((uint8)((isDriveBy ? 1 : 0) | ((shotKind & 7) << 1)));
 	w.Write<float>(origin.x); w.Write<float>(origin.y); w.Write<float>(origin.z);
 	w.Write<float>(dir.x); w.Write<float>(dir.y); w.Write<float>(dir.z);
 	uint8 hitType = 0;
@@ -640,7 +758,8 @@ void CMPManager::OnShotFired(eWeaponType weapon, const CVector &origin, const CV
 	w.Write<uint8>(hitType);
 	w.Write<int32>(hitNetId);
 	w.Write<float>(dmg);
-	if (w.ok) QueuePacket(1, 0, pkt, w.pos);
+	w.Write<float>(power);
+	if (w.ok) QueuePacket((shotKind == 2) ? 1 : 0, 0, pkt, w.pos);
 }
 
 void CMPManager::HandleShotEventPacket(int fromPeerId, const uint8 *data, int len)
@@ -648,7 +767,7 @@ void CMPManager::HandleShotEventPacket(int fromPeerId, const uint8 *data, int le
 	MPBufReader r(data + 1, len - 1);
 	uint8 peerId = r.Read<uint8>();
 	uint8 weapon = r.Read<uint8>();
-	uint8 isDriveBy = r.Read<uint8>();
+	uint8 shotFlags = r.Read<uint8>();
 	CVector origin, dir;
 	origin.x = r.Read<float>(); origin.y = r.Read<float>(); origin.z = r.Read<float>();
 	dir.x = r.Read<float>(); dir.y = r.Read<float>(); dir.z = r.Read<float>();
@@ -657,39 +776,221 @@ void CMPManager::HandleShotEventPacket(int fromPeerId, const uint8 *data, int le
 	float dmg = r.Read<float>();
 	if (!r.ok || peerId == (uint8)localPeerId)
 		return;
+	float power = (r.pos + 4 <= len - 1) ? r.Read<float>() : 0.35f;
 	(void)fromPeerId;
-	(void)isDriveBy;
+	(void)hitType;
+	(void)hitNetId;
+	(void)dmg;
 
 	MPRemotePlayer *rp = GetPeerSlot(peerId);
-	CPed *shooter = rp ? rp->ped : nil;
+	CPed *shooter = (rp && rp->ped && IsPoolPedValid(rp->ped)) ? rp->ped : nil;
+	if (!shooter) return;
+	if (dir.MagnitudeSqr() < 0.0001f) dir = shooter->GetForward();
+	else dir.Normalise();
 
-	CParticle::AddParticle(PARTICLE_GUNFLASH, origin, dir * 0.5f, nil, 0.2f);
-	if (shooter && IsPoolPedValid(shooter)) {
+	uint8 shotKind = (shotFlags >> 1) & 7;
+	eWeaponType ewt = (eWeaponType)Clamp((int)weapon, 0, (int)WEAPONTYPE_TOTALWEAPONS - 1);
+	CWeaponInfo *info = CWeaponInfo::GetWeaponInfo(ewt);
+	if (shotKind == 0 && (ewt == WEAPONTYPE_UNARMED || ewt == WEAPONTYPE_BASEBALLBAT))
+		shotKind = 1;
+
+	if (shotKind == 1) {
+		uint16 sfx = (ewt == WEAPONTYPE_BASEBALLBAT) ? SOUND_WEAPON_BAT_ATTACK : SOUND_FIGHT_PUNCH_37;
+		DMAudio.PlayOneShot(shooter->m_audioEntityId, sfx, 0.0f);
+	} else if (shotKind == 2) {
+		CMatrix savedMat = shooter->GetMatrix();
+		float hdg = CGeneral::GetRadianAngleBetweenPoints(dir.x, dir.y, 0.0f, 0.0f);
+		shooter->GetMatrix().SetRotateZ(hdg);
+		if (ewt == WEAPONTYPE_ROCKETLAUNCHER) {
+			shooter->GetMatrix().GetForward() = dir;
+			shooter->GetMatrix().GetRight() = CrossProduct(dir, CVector(0.0f, 0.0f, 1.0f));
+			if (shooter->GetMatrix().GetRight().MagnitudeSqr() < 0.001f)
+				shooter->GetMatrix().GetRight() = CVector(1.0f, 0.0f, 0.0f);
+			else
+				shooter->GetMatrix().GetRight().Normalise();
+			shooter->GetMatrix().GetUp() = CrossProduct(shooter->GetMatrix().GetRight(), dir);
+		}
+		shooter->SetPosition(savedMat.GetPosition());
+		suppressLocalHooks = true;
+		CProjectileInfo::AddProjectile(shooter, ewt, origin, power);
+		suppressLocalHooks = false;
+		shooter->GetMatrix() = savedMat;
+		shooter->UpdateRwFrame();
+	} else if (shotKind == 3) {
+		CWeapon::GenerateFlameThrowerParticles(origin, dir);
+		DMAudio.PlayOneShot(shooter->m_audioEntityId, SOUND_WEAPON_FLAMETHROWER_FIRE, 0.0f);
+	} else {
+		CParticle::AddParticle(PARTICLE_GUNFLASH, origin, dir * 0.4f, nil, 0.2f);
 		uint16 sfx = SOUND_WEAPON_SHOT_FIRED;
 		if (weapon == WEAPONTYPE_UZI || weapon == WEAPONTYPE_UZI_DRIVEBY) sfx = SOUND_WEAPON_UZI_BULLET_ECHO;
 		else if (weapon == WEAPONTYPE_AK47) sfx = SOUND_WEAPON_AK47_BULLET_ECHO;
 		else if (weapon == WEAPONTYPE_M16) sfx = SOUND_WEAPON_M16_BULLET_ECHO;
 		DMAudio.PlayOneShot(shooter->m_audioEntityId, sfx, 1.0f);
-	}
 
-	if (hitType == 1 && hitNetId > 0) {
-		CVehicle *veh = FindVehByNetId(hitNetId);
-		if (veh && ValidateVehiclePtr(veh))
-			veh->InflictDamage(shooter, (eWeaponType)weapon, dmg);
-	} else {
+		float range = info ? Min(info->m_fRange, 85.0f) : 65.0f;
 		CColPoint cp;
 		CEntity *hitEnt = nil;
-		CVector endPt = origin + dir * 65.0f;
-		if (CWorld::ProcessLineOfSight(origin, endPt, cp, hitEnt, true, true, true, true, false, false, false)) {
-			CParticle::AddParticle(PARTICLE_GUNSMOKE, cp.point, CVector(0, 0, 0.05f), nil, 0.15f);
-			if (hitEnt && hitEnt != shooter) {
-				if (hitEnt->IsPed())
-					((CPed *)hitEnt)->InflictDamage(shooter, (eWeaponType)weapon, dmg, PEDPIECE_TORSO, 0);
-				else if (hitEnt->IsVehicle())
-					((CVehicle *)hitEnt)->InflictDamage(shooter, (eWeaponType)weapon, dmg);
+		CWorld::pIgnoreEntity = shooter;
+		CWorld::bIncludeDeadPeds = true;
+		bool hit = CWorld::ProcessLineOfSight(origin, origin + dir * range, cp, hitEnt, true, true, true, true, false, false, false);
+		CWorld::pIgnoreEntity = nil;
+		CWorld::bIncludeDeadPeds = false;
+		if (hit && hitEnt && hitEnt != shooter) {
+			if (hitEnt->IsPed())
+				CParticle::AddParticle(PARTICLE_BLOOD, cp.point, CVector(0.0f, 0.0f, 0.04f));
+			else if (hitEnt->IsVehicle()) {
+				for (int k = 0; k < 4; k++) CParticle::AddParticle(PARTICLE_SPARK, cp.point, cp.normal * 0.05f);
+			} else {
+				CParticle::AddParticle(PARTICLE_GUNSMOKE, cp.point, cp.normal * 0.05f, nil, 0.15f);
 			}
 		}
 	}
+}
+
+void CMPManager::OnPedDamaged(CPed *victim, CEntity *attacker, eWeaponType method, float damage, int pedPiece, uint8 direction)
+{
+	if (!active || suppressLocalHooks || !victim) return;
+	CPlayerPed *local = FindPlayerPed();
+	CVehicle *localVeh = FindPlayerVehicle();
+	if (attacker != local && (!localVeh || attacker != localVeh)) return;
+
+	uint8 targetKind = 0;
+	int32 targetId = FindPeerIdByPed(victim);
+	if (targetId > 0) {
+		targetKind = 0;
+	} else if (!isHost) {
+		targetId = FindSyncedPedNetIdByPtr(victim);
+		if (targetId < 0) return;
+		targetKind = 1;
+	} else {
+		return;
+	}
+
+	uint8 isMelee = (method == WEAPONTYPE_UNARMED || method == WEAPONTYPE_BASEBALLBAT) ? 1 : 0;
+	CVector hitPos = victim->GetPosition();
+	uint8 pkt[40];
+	MPBufWriter w(pkt, sizeof(pkt));
+	w.Write<uint8>(PKT_DAMAGE_EVENT);
+	w.Write<uint8>(targetKind);
+	w.Write<uint8>((uint8)method);
+	w.Write<uint8>((uint8)pedPiece);
+	w.Write<uint8>(direction);
+	w.Write<uint8>(isMelee);
+	w.Write<int32>(targetId);
+	w.Write<float>(damage);
+	w.Write<float>(hitPos.x); w.Write<float>(hitPos.y); w.Write<float>(hitPos.z);
+	if (w.ok) QueuePacket(1, 0, pkt, w.pos);
+}
+
+void CMPManager::OnVehicleDamaged(CVehicle *veh, CEntity *attacker, eWeaponType weapon, float damage)
+{
+	if (!active || suppressLocalHooks || !veh) return;
+	if (!MP_IsRemoteControlledVehicle(veh)) return;
+	CPlayerPed *local = FindPlayerPed();
+	CVehicle *localVeh = FindPlayerVehicle();
+	if (attacker != local && (!localVeh || attacker != localVeh)) return;
+	MPVehicleNetEntry *e = FindVehEntry(veh);
+	if (!e || e->netId <= 0) return;
+
+	CVector pos = veh->GetPosition();
+	uint8 pkt[40];
+	MPBufWriter w(pkt, sizeof(pkt));
+	w.Write<uint8>(PKT_DAMAGE_EVENT);
+	w.Write<uint8>(2);
+	w.Write<uint8>((uint8)weapon);
+	w.Write<uint8>(0);
+	w.Write<uint8>(0);
+	w.Write<uint8>(0);
+	w.Write<int32>(e->netId);
+	w.Write<float>(damage);
+	w.Write<float>(pos.x); w.Write<float>(pos.y); w.Write<float>(pos.z);
+	if (w.ok) QueuePacket(1, 0, pkt, w.pos);
+}
+
+void CMPManager::HandleDamageEventPacket(int fromPeerId, const uint8 *data, int len)
+{
+	MPBufReader r(data + 1, len - 1);
+	uint8 targetKind = r.Read<uint8>();
+	uint8 wt = r.Read<uint8>();
+	uint8 piece = r.Read<uint8>();
+	uint8 dir = r.Read<uint8>();
+	uint8 isMelee = r.Read<uint8>();
+	int32 targetId = r.Read<int32>();
+	float damage = r.Read<float>();
+	CVector hitPos;
+	hitPos.x = r.Read<float>(); hitPos.y = r.Read<float>(); hitPos.z = r.Read<float>();
+	if (!r.ok) return;
+	(void)hitPos;
+
+	MPRemotePlayer *rp = GetPeerSlot(fromPeerId);
+	CPed *attacker = (rp && rp->ped && IsPoolPedValid(rp->ped)) ? rp->ped : nil;
+	eWeaponType ewt = (eWeaponType)Clamp((int)wt, 0, (int)WEAPONTYPE_TOTALWEAPONS - 1);
+
+	suppressLocalHooks = true;
+	if (targetKind == 0 && targetId == localPeerId) {
+		CPlayerPed *local = FindPlayerPed();
+		if (local && !local->DyingOrDead()) {
+			if (isMelee && !local->bInVehicle) {
+				local->StartFightDefend(dir, HITLEVEL_HIGH, 10);
+			}
+			local->InflictDamage(attacker, ewt, damage, (ePedPieceTypes)piece, dir);
+			CParticle::AddParticle(PARTICLE_BLOOD, local->GetPosition() + CVector(0.0f, 0.0f, 0.35f), CVector(0.0f, 0.0f, 0.04f));
+			if (attacker) {
+				DMAudio.PlayOneShot(local->m_audioEntityId, isMelee ? SOUND_WEAPON_HIT_PED : SOUND_WEAPON_SHOT_FIRED, 0.0f);
+			}
+		}
+	} else if (targetKind == 1 && isHost) {
+		CPed *npc = CPools::GetPed(targetId);
+		if (npc && IsPoolPedValid(npc) && npc != FindPlayerPed() && !IsRemotePlayerPed(npc) && !npc->DyingOrDead()) {
+			npc->ReactToAttack(attacker ? (CEntity *)attacker : (CEntity *)FindPlayerPed());
+			if (isMelee && !npc->bInVehicle) {
+				npc->StartFightDefend(dir, HITLEVEL_HIGH, 10);
+			}
+			npc->InflictDamage(attacker, ewt, damage, (ePedPieceTypes)piece, dir);
+			CParticle::AddParticle(PARTICLE_BLOOD, npc->GetPosition() + CVector(0.0f, 0.0f, 0.35f), CVector(0.0f, 0.0f, 0.04f));
+		}
+	} else if (targetKind == 2) {
+		CVehicle *veh = FindVehByNetId(targetId);
+		if (veh && ValidateVehiclePtr(veh) && !MP_IsRemoteControlledVehicle(veh)) {
+			veh->InflictDamage(attacker, ewt, damage);
+		}
+	}
+	suppressLocalHooks = false;
+}
+
+void CMPManager::OnExplosion(CEntity *culprit, int expType, const CVector &pos)
+{
+	if (!active || gMpSuppressExplosion3) return;
+	CPlayerPed *local = FindPlayerPed();
+	CVehicle *localVeh = FindPlayerVehicle();
+	if (culprit != local && (!localVeh || culprit != localVeh)) return;
+	RecordExplosion3(pos, CTimer::GetTimeInMilliseconds());
+
+	uint8 pkt[24];
+	MPBufWriter w(pkt, sizeof(pkt));
+	w.Write<uint8>(PKT_EXPLOSION_EVENT);
+	w.Write<uint8>((uint8)expType);
+	w.Write<float>(pos.x); w.Write<float>(pos.y); w.Write<float>(pos.z);
+	if (w.ok) QueuePacket(1, 0, pkt, w.pos);
+}
+
+void CMPManager::HandleExplosionEventPacket(int fromPeerId, const uint8 *data, int len)
+{
+	MPBufReader r(data + 1, len - 1);
+	uint8 expType = r.Read<uint8>();
+	CVector pos;
+	pos.x = r.Read<float>(); pos.y = r.Read<float>(); pos.z = r.Read<float>();
+	if (!r.ok) return;
+
+	uint32 now = CTimer::GetTimeInMilliseconds();
+	if (IsDuplicateExplosion3(pos, now)) return;
+	RecordExplosion3(pos, now);
+
+	MPRemotePlayer *rp = GetPeerSlot(fromPeerId);
+	CEntity *attacker = (rp && rp->ped && IsPoolPedValid(rp->ped)) ? (CEntity *)rp->ped : nil;
+	gMpSuppressExplosion3 = true;
+	CExplosion::AddExplosion(nil, attacker, (eExplosionType)expType, pos, 0);
+	gMpSuppressExplosion3 = false;
 }
 
 void CMPManager::TickPedsAfterGame(uint32 nowMs)
@@ -816,6 +1117,10 @@ void CMPManager::HandlePedSyncPacket(int fromPeerId, const uint8 *data, int len)
 		slot->targetWeapon = weapon;
 		slot->targetAnim = anim;
 		slot->targetFlags = flags;
+		if (fresh) {
+			slot->lastHealth = hp;
+			slot->prevFlags = flags;
+		}
 		if (fresh || (slot->pos - pos).MagnitudeSqr() > SQR(15.0f)) {
 			slot->pos = pos;
 			slot->heading = heading;
@@ -851,9 +1156,24 @@ void CMPManager::InterpolateSyncedPeds(uint32 nowMs)
 		if (!sp.ped || !sp.hasTarget) continue;
 		CPed *p = sp.ped;
 		if (sp.targetFlags & 1) {
-			if (!p->DyingOrDead()) { p->m_fHealth = 0.0f; p->SetDead(); }
+			if (!(sp.prevFlags & 1) && !p->DyingOrDead()) {
+				p->m_fHealth = 0.0f;
+				p->SetDie(ANIM_STD_KO_FRONT, 4.0f, 0.0f);
+			} else if (!p->DyingOrDead()) {
+				p->m_fHealth = 0.0f;
+				p->SetDead();
+			}
+			sp.lastHealth = 0;
+			sp.prevFlags = sp.targetFlags;
 			continue;
 		}
+
+		if (sp.targetHealth < sp.lastHealth && sp.lastHealth > 0) {
+			p->StartFightDefend(0, HITLEVEL_HIGH, 10);
+			CParticle::AddParticle(PARTICLE_BLOOD, p->GetPosition() + CVector(0.0f, 0.0f, 0.35f), CVector(0.0f, 0.0f, 0.04f));
+		}
+		sp.lastHealth = sp.targetHealth;
+		sp.prevFlags = sp.targetFlags;
 
 		float dtExtrap = Min((float)(nowMs - sp.lastRxMs) * 0.001f, 0.12f);
 		CVector predPos = sp.targetPos + sp.targetVel * (dtExtrap * 50.0f);
@@ -896,9 +1216,30 @@ void CMPManager::InterpolateSyncedPeds(uint32 nowMs)
 }
 
 bool MP_IsRemotePlayerPed(const CPed *ped) { return gMP.IsRemotePlayerPed(ped); }
-void MP_OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy)
+void MP_OnShotFired(eWeaponType weapon, const CVector &origin, const CVector &dir, CEntity *hitEnt, float dmg, bool isDriveBy, uint8 shotKind, float power)
 {
-	gMP.OnShotFired(weapon, origin, dir, hitEnt, dmg, isDriveBy);
+	gMP.OnShotFired(weapon, origin, dir, hitEnt, dmg, isDriveBy, shotKind, power);
+}
+void MP_OnPedDamaged(CPed *victim, CEntity *attacker, eWeaponType method, float damage, int pedPiece, uint8 direction)
+{
+	gMP.OnPedDamaged(victim, attacker, method, damage, pedPiece, direction);
+}
+void MP_OnVehicleDamaged(CVehicle *veh, CEntity *attacker, eWeaponType weapon, float damage)
+{
+	gMP.OnVehicleDamaged(veh, attacker, weapon, damage);
+}
+void MP_OnExplosion(CEntity *culprit, int expType, const CVector &pos)
+{
+	gMP.OnExplosion(culprit, expType, pos);
+}
+bool MP_ShouldSuppressExplosionDamage(CEntity *victim, CEntity *attacker, eWeaponType method)
+{
+	if (!gMP.active || gMP.suppressLocalHooks || method != WEAPONTYPE_EXPLOSION) return false;
+	if (!victim || !attacker || !attacker->IsPed()) return false;
+	if (!gMP.IsRemotePlayerPed((const CPed *)attacker)) return false;
+	if (victim == FindPlayerPed()) return true;
+	if (!gMP.isHost && victim->IsPed() && gMP.IsSyncedPed((const CPed *)victim)) return true;
+	return false;
 }
 
 #endif // MULTIPLAYER_COOP

@@ -402,8 +402,15 @@ CAutomobile::ProcessControl(void)
 		return;
 
 	case STATUS_PHYSICS:
+#ifdef MULTIPLAYER_COOP
+		if (!MP_IsRemoteControlledVehicle(this)) {
+			CCarAI::UpdateCarAI(this);
+			CCarCtrl::SteerAICarWithPhysics(this);
+		}
+#else
 		CCarAI::UpdateCarAI(this);
 		CCarCtrl::SteerAICarWithPhysics(this);
+#endif
 		PlayHornIfNecessary();
 		break;
 
