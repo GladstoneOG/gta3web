@@ -154,6 +154,12 @@ struct MPPedNetEntry {
 	uint8 targetFlags;
 	uint8 lastHealth;
 	uint8 prevFlags;
+	uint8 actionFlags;
+	uint8 animGroup;
+	int16 animId;
+	int16 lastAnimId;
+	float animTime;
+	uint32 lastShotFxMs;
 	bool hasTarget;
 };
 

@@ -121,12 +121,6 @@ bool IsLocomotionAnimId(int32 animId)
 	case ANIM_STD_IDLE_TIRED:
 	case ANIM_STD_RUNSTOP1:
 	case ANIM_STD_RUNSTOP2:
-	case ANIM_STD_JUMP_LAUNCH:
-	case ANIM_STD_JUMP_GLIDE:
-	case ANIM_STD_JUMP_LAND:
-	case ANIM_STD_FALL:
-	case ANIM_STD_FALL_GLIDE:
-	case ANIM_STD_FALL_LAND:
 		return true;
 	default:
 		return false;
@@ -1007,7 +1001,7 @@ void CMPManager::TickPedsAfterGame(uint32 nowMs)
 	int sz = pool->GetSize();
 	if (sz <= 0) return;
 
-	// Header 2 + count * 30 bytes (14 * 30 + 2 = 422 <= 512)
+	// Header 2 + count * 35 bytes (14 * 35 + 2 = 492 <= 512)
 	uint8 pkt[MP_MAX_PKT_BYTES];
 	MPBufWriter w(pkt, sizeof(pkt));
 	w.Write<uint8>(PKT_PED_SYNC);
@@ -1025,6 +1019,31 @@ void CMPManager::TickPedsAfterGame(uint32 nowMs)
 
 		int32 netId = CPools::GetPedRef(p);
 		uint8 pflags = (p->DyingOrDead() ? 1 : 0) | ((p->CharCreatedBy == MISSION_CHAR) ? 2 : 0) | (p->bIsDucking ? 4 : 0);
+		uint8 pflags2 = (p->bIsShooting ? 1 : 0)
+			| ((p->bIsAimingGun || p->m_nPedState == PED_AIM_GUN) ? 2 : 0)
+			| ((p->m_nPedState == PED_FIGHT || p->m_nPedState == PED_ATTACK || p->bIsAttacking) ? 4 : 0)
+			| ((p->m_nPedState == PED_JUMP || p->bIsInTheAir) ? 8 : 0)
+			| ((p->m_nPedState == PED_FALL || p->m_nPedState == PED_GETUP) ? 16 : 0);
+		uint8 animGrp = 0;
+		int16 animId = -1;
+		uint8 animTime8 = 0;
+		if (!p->DyingOrDead() && p->GetClump()) {
+			CAnimBlendAssociation *best = nil;
+			float bestW = 0.05f;
+			for (CAnimBlendAssociation *a = RpAnimBlendClumpGetFirstAssociation(p->GetClump()); a; a = RpAnimBlendGetNextAssociation(a)) {
+				if (IsLocomotionAnimId(a->animId)) continue;
+				if (a->blendDelta >= 0.0f && a->blendAmount > bestW) {
+					bestW = a->blendAmount;
+					best = a;
+				}
+			}
+			if (best) {
+				animGrp = (uint8)ASSOCGRP_STD;
+				animId = (int16)best->animId;
+				animTime8 = (uint8)Clamp((int)(best->currentTime * 20.0f), 0, 255);
+			}
+		}
+
 		CVector pos = p->GetPosition();
 		int16 vx16 = (int16)Clamp((int32)(p->m_vecMoveSpeed.x * 1000.0f), -32000, 32000);
 		int16 vy16 = (int16)Clamp((int32)(p->m_vecMoveSpeed.y * 1000.0f), -32000, 32000);
@@ -1040,6 +1059,10 @@ void CMPManager::TickPedsAfterGame(uint32 nowMs)
 		w.Write<uint8>((uint8)Clamp(p->m_fHealth, 0.0f, 255.0f));
 		w.Write<uint8>((uint8)p->GetWeapon()->m_eWeaponType);
 		w.Write<uint8>((uint8)p->m_nMoveState);
+		w.Write<uint8>(pflags2);
+		w.Write<uint8>(animGrp);
+		w.Write<int16>(animId);
+		w.Write<uint8>(animTime8);
 		count++;
 	}
 	pedScanCursor = (pedScanCursor + 9) % (uint32)sz;
@@ -1071,6 +1094,10 @@ void CMPManager::HandlePedSyncPacket(int fromPeerId, const uint8 *data, int len)
 		uint8 hp = r.Read<uint8>();
 		uint8 weapon = r.Read<uint8>();
 		uint8 anim = r.Read<uint8>();
+		uint8 pflags2 = r.Read<uint8>();
+		uint8 animGrp = r.Read<uint8>();
+		int16 animId = r.Read<int16>();
+		uint8 animTime8 = r.Read<uint8>();
 		if (!r.ok) break;
 		if ((pos - lpos).MagnitudeSqr2D() > SQR(95.0f))
 			continue;
@@ -1117,9 +1144,14 @@ void CMPManager::HandlePedSyncPacket(int fromPeerId, const uint8 *data, int len)
 		slot->targetWeapon = weapon;
 		slot->targetAnim = anim;
 		slot->targetFlags = flags;
+		slot->actionFlags = pflags2;
+		slot->animGroup = animGrp;
+		slot->animId = animId;
+		slot->animTime = (float)animTime8 * 0.05f;
 		if (fresh) {
 			slot->lastHealth = hp;
 			slot->prevFlags = flags;
+			slot->lastAnimId = -1;
 		}
 		if (fresh || (slot->pos - pos).MagnitudeSqr() > SQR(15.0f)) {
 			slot->pos = pos;
@@ -1175,6 +1207,13 @@ void CMPManager::InterpolateSyncedPeds(uint32 nowMs)
 		sp.lastHealth = sp.targetHealth;
 		sp.prevFlags = sp.targetFlags;
 
+		if ((sp.actionFlags & 1) && (nowMs - sp.lastShotFxMs) > 160u) {
+			sp.lastShotFxMs = nowMs;
+			CVector flashPos = p->GetPosition() + p->GetForward() * 0.55f + CVector(0.0f, 0.0f, 0.45f);
+			CParticle::AddParticle(PARTICLE_GUNFLASH, flashPos, p->GetForward() * 0.35f, nil, 0.16f);
+			DMAudio.PlayOneShot(p->m_audioEntityId, SOUND_WEAPON_SHOT_FIRED, 0.0f);
+		}
+
 		float dtExtrap = Min((float)(nowMs - sp.lastRxMs) * 0.001f, 0.12f);
 		CVector predPos = sp.targetPos + sp.targetVel * (dtExtrap * 50.0f);
 		if ((predPos - sp.pos).MagnitudeSqr() > SQR(12.0f)) {
@@ -1193,24 +1232,58 @@ void CMPManager::InterpolateSyncedPeds(uint32 nowMs)
 		p->UpdateRwFrame();
 		p->m_fHealth = Clamp((float)sp.targetHealth, 1.0f, 100.0f);
 		p->bIsDucking = !!(sp.targetFlags & 4);
+		p->bIsShooting = !!(sp.actionFlags & 1);
+		p->bIsAimingGun = !!(sp.actionFlags & 2);
+		p->bIsAttacking = !!(sp.actionFlags & 4);
 
 		if (sp.targetWeapon < WEAPONTYPE_LAST_WEAPONTYPE && p->GetWeapon()->m_eWeaponType != (eWeaponType)sp.targetWeapon) {
 			p->GiveWeapon((eWeaponType)sp.targetWeapon, 100);
 			p->SetCurrentWeapon((eWeaponType)sp.targetWeapon);
 		}
+		p->RestartNonPartialAnims();
 		eMoveState ms = (eMoveState)sp.targetAnim;
 		if (ms == PEDMOVE_NONE) ms = (sp.targetVel.Magnitude2D() > 0.005f) ? PEDMOVE_WALK : PEDMOVE_STILL;
 		p->m_nMoveState = ms;
 		if (sp.targetFlags & 4) {
 			p->SetDuck(200);
-		} else if (ms == PEDMOVE_SPRINT) {
-			CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_RUNFAST, 4.0f);
-		} else if (ms == PEDMOVE_RUN) {
-			CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_RUN, 4.0f);
-		} else if (ms == PEDMOVE_WALK) {
-			CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_WALK, 4.0f);
-		} else {
-			CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_IDLE, 4.0f);
+		} else if (sp.animId < 0) {
+			if (ms == PEDMOVE_SPRINT) {
+				CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_RUNFAST, 4.0f);
+			} else if (ms == PEDMOVE_RUN) {
+				CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_RUN, 4.0f);
+			} else if (ms == PEDMOVE_WALK) {
+				CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_WALK, 4.0f);
+			} else {
+				CAnimManager::BlendAnimation(p->GetClump(), p->m_animGroup, ANIM_STD_IDLE, 4.0f);
+			}
+		}
+		if (sp.animId >= 0) {
+			if (sp.lastAnimId >= 0 && sp.lastAnimId != sp.animId) {
+				CAnimBlendAssociation *prev = RpAnimBlendClumpGetAssociation(p->GetClump(), (uint32)sp.lastAnimId);
+				if (prev) {
+					prev->blendDelta = -8.0f;
+					prev->flags |= ASSOC_DELETEFADEDOUT;
+				}
+			}
+			CAnimBlendAssociation *ca = RpAnimBlendClumpGetAssociation(p->GetClump(), (uint32)sp.animId);
+			if (!ca || ca->blendDelta < 0.0f) {
+				ca = CAnimManager::BlendAnimation(p->GetClump(), ASSOCGRP_STD, (AnimationId)sp.animId, 8.0f);
+			}
+			if (ca) {
+				ca->callbackType = CAnimBlendAssociation::CB_NONE;
+				ca->SetRun();
+				if (fabsf(ca->currentTime - sp.animTime) > 0.12f && sp.animTime >= 0.0f && ca->hierarchy && sp.animTime <= ca->hierarchy->totalLength) {
+					ca->SetCurrentTime(sp.animTime);
+				}
+			}
+			sp.lastAnimId = sp.animId;
+		} else if (sp.lastAnimId >= 0) {
+			CAnimBlendAssociation *prev = RpAnimBlendClumpGetAssociation(p->GetClump(), (uint32)sp.lastAnimId);
+			if (prev) {
+				prev->blendDelta = -8.0f;
+				prev->flags |= ASSOC_DELETEFADEDOUT;
+			}
+			sp.lastAnimId = -1;
 		}
 	}
 }
